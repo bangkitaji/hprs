@@ -1,0 +1,36 @@
+const userService = require('../services/userService');
+
+/**
+ * Controller untuk endpoint POST /api/auth/login
+ */
+async function login(req, res, next) {
+  try {
+    const { username, password } = req.body;
+    const authResult = await userService.authenticateUser(username, password);
+    res.json({
+      success: true,
+      message: 'Login successful.',
+      ...authResult,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Controller untuk endpoint GET /api/auth/me (Cek sesi pengguna)
+ */
+async function getProfile(req, res, next) {
+  try {
+    res.json({
+      user: req.user,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  login,
+  getProfile,
+};

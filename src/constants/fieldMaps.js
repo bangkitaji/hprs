@@ -1,0 +1,150 @@
+/**
+ * Kamus Pemetaan Header Kolom Excel ke Kolom Tabel Database PostgreSQL
+ * Key: nama header yang telah dinormalisasi (lowercase, alfanumerik)
+ * Value: nama kolom database
+ */
+
+const SALES_FIELD_MAP = {
+  seqno: 'seq_no',
+  passengername: 'passenger_name',
+  nikpassportno: 'nik_passport_no',
+  nationality: 'nationality',
+  orderno: 'order_no',
+  ticketno: 'ticket_no',
+  ticketingstation: 'ticketing_station',
+  businessarea: 'business_area',
+  officeno: 'office_no',
+  windowno: 'window_no',
+  shiftno: 'shift_no',
+  operatorname: 'operator_name',
+  ticketingtime: 'ticketing_time',
+  departuredate: 'departure_date',
+  trainno: 'train_no',
+  origin: 'origin',
+  carsnumber: 'cars_number',
+  seatnumber: 'seat_number',
+  origincode: 'origin_code',
+  purchasedate: 'purchase_date',
+  purchasetime: 'purchase_time',
+  departuretime: 'departure_time',
+  destination: 'destination',
+  destinationcode: 'destination_code',
+  arrivaldate: 'arrival_date',
+  arrivaltime: 'arrival_time',
+  seatclass: 'seat_class',
+  tickettype: 'ticket_type',
+  originalticketprice: 'original_ticket_price',
+  discounttype: 'discount_type',
+  discountrate: 'discount_rate',
+  beforetaxprice: 'before_tax_price',
+  taxrate: 'tax_rate',
+  aftertaxprice: 'after_tax_price',
+  ticketingchannel: 'ticketing_channel',
+  paymentmethod: 'payment_method',
+  tradeno: 'trade_no',
+  plattradeno: 'plat_trade_no',
+  paymentgateway: 'payment_gateway',
+  b2bpartner: 'b2b_partner',
+  addsalesstatusticket: 'add_sales_status_ticket',
+};
+
+const REFUND_FIELD_MAP = {
+  seqno: 'seq_no',
+  refunddate: 'refund_date',
+  cancelationtime: 'cancelation_time',
+  refundtype: 'refund_type',
+  refundperson: 'refund_person',
+  refundchargerate: 'refund_charge_rate',
+  refundcharge: 'refund_charge',
+  refundamount: 'refund_amount',
+  refundtradeno: 'refund_trade_no',
+  plattradeno: 'plat_trade_no',
+  refundbankcode: 'refund_bank_code',
+  refundbankname: 'refund_bank_name',
+  refundmethod: 'refund_method',
+  refundstate: 'refund_state',
+  refundaccount: 'refund_account',
+  refundaccountname: 'refund_account_name',
+  actualrefundamount: 'actual_refund_amount',
+  passengername: 'passenger_name',
+  nikpassportno: 'nik_passport_no',
+  nationality: 'nationality',
+  orderno: 'order_no',
+  ticketno: 'ticket_no',
+  ticketingstation: 'ticketing_station',
+  businessarea: 'business_area',
+  officeno: 'office_no',
+  windowno: 'window_no',
+  shiftno: 'shift_no',
+  operatorname: 'operator_name',
+  ticketingtime: 'ticketing_time',
+  departuredate: 'departure_date',
+  trainno: 'train_no',
+  origin: 'origin',
+  carsnumber: 'cars_number',
+  seatnumber: 'seat_number',
+  origincode: 'origin_code',
+  purchasedate: 'purchase_date',
+  purchasetime: 'purchase_time',
+  departuretime: 'departure_time',
+  destination: 'destination',
+  destinationcode: 'destination_code',
+  arrivaldate: 'arrival_date',
+  arrivaltime: 'arrival_time',
+  seatclass: 'seat_class',
+  tickettype: 'ticket_type',
+  originalticketprice: 'original_ticket_price',
+  addrefundstatusticket: 'add_refund_status_ticket',
+};
+
+const OCCUPANCY_FIELD_MAP = {
+  trainnumber: 'train_no',
+  origin: 'origin',
+  destination: 'destination',
+  traindate: 'train_date',
+  departure: 'departure_time',
+  class: 'seat_class',
+  capacityperclass: 'capacity_per_class',
+  occupancy: 'occupancy_rate',
+  sumpsg: 'sum_passengers',
+  totfare: 'total_fare',
+  fare: 'fare',
+};
+
+const SALES_DB_FIELDS = [
+  'seq_no', 'passenger_name', 'nik_passport_no', 'nationality', 'order_no', 'ticket_no',
+  'ticketing_station', 'business_area', 'office_no', 'window_no', 'shift_no', 'operator_name',
+  'ticketing_time', 'departure_date', 'train_no', 'origin', 'cars_number', 'seat_number',
+  'origin_code', 'purchase_date', 'purchase_time', 'departure_time', 'destination',
+  'destination_code', 'arrival_date', 'arrival_time', 'seat_class', 'ticket_type',
+  'original_ticket_price', 'discount_type', 'discount_rate', 'before_tax_price',
+  'tax_rate', 'after_tax_price', 'ticketing_channel', 'payment_method', 'trade_no',
+  'plat_trade_no', 'payment_gateway', 'b2b_partner', 'add_sales_status_ticket'
+];
+
+const REFUND_DB_FIELDS = [
+  'seq_no', 'refund_date', 'cancelation_time', 'refund_type', 'refund_person',
+  'refund_charge_rate', 'refund_charge', 'refund_amount', 'refund_trade_no', 'plat_trade_no',
+  'refund_bank_code', 'refund_bank_name', 'refund_method', 'refund_state', 'refund_account',
+  'refund_account_name', 'actual_refund_amount', 'passenger_name', 'nik_passport_no',
+  'nationality', 'order_no', 'ticket_no', 'ticketing_station', 'business_area',
+  'office_no', 'window_no', 'shift_no', 'operator_name', 'ticketing_time',
+  'departure_date', 'train_no', 'origin', 'cars_number', 'seat_number',
+  'origin_code', 'purchase_date', 'purchase_time', 'departure_time',
+  'destination', 'destination_code', 'arrival_date', 'arrival_time',
+  'seat_class', 'ticket_type', 'original_ticket_price', 'add_refund_status_ticket'
+];
+
+const OCCUPANCY_DB_FIELDS = [
+  'train_no', 'origin', 'destination', 'train_date', 'departure_time',
+  'seat_class', 'capacity_per_class', 'occupancy_rate', 'sum_passengers', 'total_fare', 'fare'
+];
+
+module.exports = {
+  SALES_FIELD_MAP,
+  REFUND_FIELD_MAP,
+  OCCUPANCY_FIELD_MAP,
+  SALES_DB_FIELDS,
+  REFUND_DB_FIELDS,
+  OCCUPANCY_DB_FIELDS,
+};

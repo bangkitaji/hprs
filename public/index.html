@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAREBOX DATA MANAGEMENT — Excel Data Ingestion & Reporting Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Ambient Glow Elements -->
+  <div class="glow glow-1"></div>
+  <div class="glow glow-2"></div>
+
+  <div class="app-container">
+    <!-- TOP NAVBAR -->
+    <header class="app-header">
+      <div class="brand-group">
+        <div class="brand-logo">
+          <img src="kcic-logo.jpg" alt="KCIC Logo" class="brand-logo-img">
+        </div>
+        <div class="brand-text">
+          <div class="brand-title">FAREBOX DATA MANAGEMENT</div>
+          <div class="brand-subtitle">an HPR databank center</div>
+        </div>
+      </div>
+
+
+      <!-- User Profile & Logout -->
+      <div class="user-badge-container" id="user-badge-container" style="display: none;">
+        <div class="user-info">
+          <i class="fa-solid fa-circle-user user-avatar-icon"></i>
+          <div class="user-text">
+            <span class="user-name" id="user-display-name">User</span>
+            <span class="role-pill" id="user-display-role">Role</span>
+          </div>
+        </div>
+        <button class="btn-logout" id="btn-logout" onclick="logout()" title="Sign out of system">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i>
+          <span>Logout</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- NAVIGATION TABS -->
+    <nav class="nav-tabs" role="tablist">
+      <button class="tab-btn active" id="tab-upload-btn" onclick="switchTab('upload')">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        <span>Upload Center</span>
+      </button>
+      <button class="tab-btn" id="tab-dashboard-btn" onclick="switchTab('dashboard')">
+        <i class="fa-solid fa-chart-line"></i>
+        <span>Live Data Mart</span>
+      </button>
+      <button class="tab-btn" id="tab-history-btn" onclick="switchTab('history')">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <span>Upload History</span>
+      </button>
+      <button class="tab-btn" id="tab-users-btn" onclick="switchTab('users')" style="display: none;">
+        <i class="fa-solid fa-users-gear"></i>
+        <span>User Management</span>
+      </button>
+    </nav>
+
+    <!-- TAB 1: UPLOAD CENTER -->
+    <main id="tab-upload" class="tab-content active">
+      <!-- Drag and drop zone -->
+      <section class="upload-card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title"><i class="fa-solid fa-file-excel card-icon"></i> Upload Ticketing & Occupancy Excel Files</h2>
+            <p class="card-desc">Supports native ticketing system export formats (.xlsx / .xls). <strong>Auto-detects Sales, Refund, & Occupancy report structures.</strong></p>
+          </div>
+          <div class="badge-format">
+            <i class="fa-solid fa-circle-check"></i> Auto-Detect Sales, Refund & Occupancy
+          </div>
+        </div>
+
+        <div class="dropzone" id="dropzone" onclick="triggerFileInput()">
+          <input type="file" id="file-input" accept=".xlsx, .xls" style="display:none;" onchange="handleFileSelect(event)">
+          <div class="dropzone-icon">
+            <i class="fa-solid fa-file-arrow-up"></i>
+          </div>
+          <h3 class="dropzone-title">Drag & drop Excel files here</h3>
+          <p class="dropzone-sub">or <span class="dropzone-browse">Browse from Computer</span></p>
+          <div class="dropzone-tags">
+            <span class="tag"><i class="fa-solid fa-check"></i> 20,000+ Records / Batch</span>
+            <span class="tag"><i class="fa-solid fa-check"></i> Automatic Header Mapping</span>
+            <span class="tag"><i class="fa-solid fa-check"></i> Idempotent Upsert</span>
+          </div>
+        </div>
+
+        <!-- File Info & Control Bar (Hidden Initially) -->
+        <div id="file-control-panel" class="file-control-panel hidden">
+          <div class="file-meta">
+            <div class="file-meta-icon">
+              <i class="fa-solid fa-file-excel"></i>
+            </div>
+            <div class="file-meta-details">
+              <div class="file-name" id="selected-file-name">filename.xlsx</div>
+              <div class="file-specs" id="selected-file-specs">0 MB • 0 Sheets</div>
+            </div>
+          </div>
+          <div class="file-actions">
+            <button class="btn btn-secondary" onclick="resetUpload()"><i class="fa-solid fa-xmark"></i> Change File</button>
+          </div>
+        </div>
+
+        <!-- Sheet Selector & Preview Options -->
+        <div id="sheet-options-panel" class="sheet-options-panel hidden">
+          <h4 class="section-subtitle"><i class="fa-solid fa-layer-group"></i> Detected Worksheets:</h4>
+          <div class="sheets-grid" id="sheets-grid">
+            <!-- Dynamically populated -->
+          </div>
+
+          <div class="preview-actions-bar">
+            <button class="btn btn-outline" id="btn-preview" onclick="togglePreviewTable()">
+              <i class="fa-solid fa-eye"></i> <span id="preview-btn-text">View Data Preview (5 Rows)</span>
+            </button>
+            <button class="btn btn-primary" id="btn-process" onclick="startBatchIngestion()">
+              <i class="fa-solid fa-bolt"></i> Execute Batch Ingestion
+            </button>
+          </div>
+        </div>
+
+        <!-- Table Preview Container -->
+        <div id="preview-table-container" class="preview-table-container hidden">
+          <div class="preview-header">
+            <span class="preview-title" id="preview-sheet-name">Data Preview</span>
+            <span class="preview-badge" id="preview-rows-badge">Showing 5 rows</span>
+          </div>
+          <div class="table-scroll-wrapper">
+            <table class="data-table" id="preview-table">
+              <thead id="preview-thead"></thead>
+              <tbody id="preview-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Processing Progress Overlay -->
+        <div id="progress-overlay" class="progress-overlay hidden">
+          <div class="progress-box">
+            <div class="progress-spinner">
+              <i class="fa-solid fa-circle-notch fa-spin"></i>
+            </div>
+            <h3 class="progress-title" id="progress-status-title">Processing Database Ingestion...</h3>
+            <p class="progress-desc" id="progress-status-desc">Reading Excel file and validating data types...</p>
+
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="progress-bar-fill"></div>
+            </div>
+
+            <div class="progress-steps">
+              <div class="step-badge active" id="step-1"><i class="fa-solid fa-check"></i> Parse Excel</div>
+              <div class="step-badge" id="step-2"><i class="fa-solid fa-check"></i> Normalize Types</div>
+              <div class="step-badge" id="step-3"><i class="fa-solid fa-check"></i> Ingest Partitions</div>
+              <div class="step-badge" id="step-4"><i class="fa-solid fa-check"></i> Sync Data Mart</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Success Result Banner -->
+        <div id="success-result-card" class="result-card hidden">
+          <div class="result-header">
+            <div class="result-icon success">
+              <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div>
+              <h3 class="result-title">Batch Ingestion Completed Successfully!</h3>
+              <p class="result-sub" id="result-message-text">All records have been saved into PostgreSQL partitions and the Data Mart has been synchronized.</p>
+            </div>
+          </div>
+          <div class="stats-metric-grid" id="result-metrics-grid">
+            <!-- Dynamically populated -->
+          </div>
+          <div class="result-footer">
+            <button class="btn btn-secondary" onclick="resetUpload()"><i class="fa-solid fa-arrow-up-from-bracket"></i> Upload Another File</button>
+            <button class="btn btn-primary" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i> Open Live Data Mart</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- TAB 2: LIVE DATA MART & REPORTING -->
+    <main id="tab-dashboard" class="tab-content">
+      <div class="dashboard-header">
+        <div>
+          <h2 class="card-title"><i class="fa-solid fa-chart-pie card-icon"></i> Daily Summary Data Mart</h2>
+          <p class="card-desc">Sub-second queries reading aggregated data from `daily_sales_summary` and `daily_occupancy_summary`.</p>
+        </div>
+        <div class="filter-group">
+          <input type="date" id="dash-start-date" class="date-input">
+          <span class="date-sep">to</span>
+          <input type="date" id="dash-end-date" class="date-input">
+          <button class="btn btn-sm btn-outline" onclick="loadDashboardSummary()"><i class="fa-solid fa-rotate"></i> Filter</button>
+        </div>
+      </div>
+
+      <!-- KPI Grid -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Tickets Sold (Period)</div>
+          <div class="kpi-value" id="kpi-tickets">-</div>
+          <div class="kpi-trend positive"><i class="fa-solid fa-check"></i> Consolidated Data</div>
+        </div>
+        <div class="kpi-card accent-red">
+          <div class="kpi-label">Total Net Revenue</div>
+          <div class="kpi-value" id="kpi-net-revenue">-</div>
+          <div class="kpi-trend"><i class="fa-solid fa-wallet"></i> After Tax & Discount</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Gross Revenue</div>
+          <div class="kpi-value" id="kpi-gross-revenue">-</div>
+          <div class="kpi-trend"><i class="fa-solid fa-tag"></i> Standard Ticket Fare</div>
+        </div>
+        <div class="kpi-card accent-cyan">
+          <div class="kpi-label">Total Ticket Refund</div>
+          <div class="kpi-value" id="kpi-refund-amount">-</div>
+          <div class="kpi-trend"><i class="fa-solid fa-receipt"></i> Refund Value</div>
+        </div>
+        <div class="kpi-card accent-purple">
+          <div class="kpi-label">Average Seat Occupancy</div>
+          <div class="kpi-value" id="kpi-avg-occupancy">-</div>
+          <div class="kpi-trend"><i class="fa-solid fa-users"></i> <span id="kpi-occupancy-sub">Total Passengers: -</span></div>
+        </div>
+      </div>
+
+      <!-- Breakdown Grid -->
+      <div class="dash-columns">
+        <div class="dash-card">
+          <h3 class="dash-card-title"><i class="fa-solid fa-train"></i> Sales by Ticketing Station</h3>
+          <div class="dash-table-wrapper">
+            <table class="dash-table" id="station-table">
+              <thead>
+                <tr>
+                  <th>Station</th>
+                  <th>Tickets</th>
+                  <th>Revenue</th>
+                </tr>
+              </thead>
+              <tbody id="station-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="dash-card">
+          <h3 class="dash-card-title"><i class="fa-solid fa-credit-card"></i> Sales by Channel / Payment Method</h3>
+          <div class="dash-table-wrapper">
+            <table class="dash-table" id="payment-table">
+              <thead>
+                <tr>
+                  <th>Channel / Gateway</th>
+                  <th>Tickets</th>
+                  <th>Revenue</th>
+                </tr>
+              </thead>
+              <tbody id="payment-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- TAB 3: UPLOAD HISTORY -->
+    <main id="tab-history" class="tab-content">
+      <div class="history-card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title"><i class="fa-solid fa-clock-rotate-left card-icon"></i> Data Ingestion Audit Log</h2>
+            <p class="card-desc">Audit history of files processed and ingested into PostgreSQL partitioned tables.</p>
+          </div>
+          <button class="btn btn-sm btn-outline" onclick="loadUploadHistory()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+        </div>
+
+        <div class="history-table-wrapper">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Upload Time</th>
+                <th>File Name</th>
+                <th>Worksheet</th>
+                <th>Data Date</th>
+                <th>Row Count</th>
+                <th>Duration</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody">
+              <tr><td colspan="7" class="empty-state">Loading history data...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- PAGINATION BAR -->
+        <div class="pagination-bar" id="history-pagination-bar">
+          <div class="pagination-info-group">
+            <span class="pagination-count" id="history-pagination-info">Showing 0–0 of 0 records</span>
+            <div class="pagination-size">
+              <label for="history-page-size">Show:</label>
+              <select id="history-page-size" class="pagination-select" onchange="changeHistoryPageSize(this.value)">
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <span>rows per page</span>
+            </div>
+          </div>
+          <div class="pagination-nav" id="history-pagination-controls"></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- TAB 4: USER MANAGEMENT (ADMINISTRATOR ONLY) -->
+    <main id="tab-users" class="tab-content">
+      <div class="users-layout">
+        <!-- Form Add User -->
+        <div class="users-card user-form-card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title"><i class="fa-solid fa-user-plus card-icon"></i> Add New User</h2>
+              <p class="card-desc">Create a new user account with role-based access permissions.</p>
+            </div>
+          </div>
+          <form id="create-user-form" onsubmit="handleCreateUser(event)" class="user-add-form">
+            <div id="user-form-alert" class="alert-box hidden"></div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="new-username"><i class="fa-solid fa-user"></i> Username</label>
+                <input type="text" id="new-username" class="form-control" placeholder="e.g. upload_staff" required minlength="3" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label for="new-fullname"><i class="fa-solid fa-id-card"></i> Full Name</label>
+                <input type="text" id="new-fullname" class="form-control" placeholder="e.g. John Doe" required autocomplete="off">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="new-password"><i class="fa-solid fa-lock"></i> Password</label>
+                <div class="password-wrapper">
+                  <input type="password" id="new-password" class="form-control" placeholder="Minimum 6 characters" required minlength="6" autocomplete="new-password">
+                  <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('new-password', this)" title="Show password" aria-label="Show password">
+                    <i class="fa-solid fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="new-role"><i class="fa-solid fa-shield-halved"></i> Role / Access Level</label>
+                <select id="new-role" class="form-control" required>
+                  <option value="user">Standard User (Upload Data Only)</option>
+                  <option value="administrator">Administrator (Full Access & User Management)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary" id="btn-save-user">
+                <i class="fa-solid fa-user-check"></i> Save User
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Table Registered Users -->
+        <div class="users-card user-table-card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title"><i class="fa-solid fa-users-gear card-icon"></i> Registered Users</h2>
+              <p class="card-desc">Active users authorized to access the ingestion portal.</p>
+            </div>
+            <button class="btn btn-sm btn-outline" onclick="loadUsers()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          </div>
+
+          <div class="history-table-wrapper">
+            <table class="history-table" id="users-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Username</th>
+                  <th>Full Name</th>
+                  <th>Access Role</th>
+                  <th>Registered On</th>
+                  <th style="text-align:center;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="users-tbody">
+                <tr><td colspan="6" class="empty-state">Loading user accounts...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="app-footer">
+      <div>FAREBOX DATA MANAGEMENT • Whoosh High-Speed Railway</div>
+    </footer>
+  </div>
+
+  <!-- MODAL LOGIN (Glassmorphic Dark Overlay) -->
+  <div id="login-modal" class="login-modal-overlay hidden">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-logo">
+          <img src="kcic-logo.jpg" alt="KCIC Logo" class="login-logo-img">
+        </div>
+        <h1 class="login-title">FAREBOX DATA MANAGEMENT</h1>
+        <p class="login-subtitle">Sign in with your registered account</p>
+      </div>
+
+      <form id="login-form" onsubmit="handleLogin(event)" class="login-form">
+        <div id="login-alert" class="alert-box hidden"></div>
+
+        <div class="form-group">
+          <label for="login-username"><i class="fa-solid fa-user"></i> Username</label>
+          <input type="text" id="login-username" class="form-control" placeholder="Enter your username" required autofocus autocomplete="username">
+        </div>
+
+        <div class="form-group">
+          <label for="login-password"><i class="fa-solid fa-lock"></i> Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="login-password" class="form-control" placeholder="Enter your password" required autocomplete="current-password">
+            <button type="button" class="btn-toggle-password" id="btn-toggle-login-password" onclick="togglePasswordVisibility('login-password', this)" title="Show password" aria-label="Show password">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="btn-submit-login">
+          <i class="fa-solid fa-arrow-right-to-bracket"></i> Sign In to System
+        </button>
+      </form>
+
+      <div class="login-hints">
+        <div class="hint-title"><i class="fa-solid fa-circle-info"></i> Default System Accounts:</div>
+        <div class="hint-grid">
+          <div class="hint-item">
+            <span class="hint-role role-pill role-admin">Administrator</span>
+            <code>admin</code> / <code>Admin@123</code>
+          </div>
+          <div class="hint-item">
+            <span class="hint-role role-pill role-user">Standard User</span>
+            <code>operator</code> / <code>User@123</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

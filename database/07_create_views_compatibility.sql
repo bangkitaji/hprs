@@ -1,0 +1,102 @@
+-- =====================================================================================
+-- 07_create_views_compatibility.sql
+-- View Kompatibilitas untuk Aplikasi Lama yang Masih Memakai Nama Kolom Berspasi
+-- Database: hpr_portal
+-- =====================================================================================
+
+-- View ini memungkinkan query warisan (legacy code) yang masih menggunakan
+-- tanda kutip dan spasi (seperti "Passenger Name", "Order No.") tetap berjalan
+-- tanpa perlu langsung mengubah kode frontend/backend lama.
+
+CREATE OR REPLACE VIEW v_hrts_sales_legacy_compat AS
+SELECT
+    seq_no                AS "Seq No",
+    passenger_name        AS "Passenger Name",
+    nik_passport_no       AS "NIK/Passport No.",
+    nationality           AS "nationality",
+    order_no              AS "Order No.",
+    ticket_no             AS "Ticket No.",
+    ticketing_station     AS "Ticketing Station",
+    business_area         AS "Business Area",
+    office_no             AS "Office No.",
+    window_no             AS "Window No.",
+    shift_no              AS "Shift No.",
+    operator_name         AS "Operator Name",
+    to_char(ticketing_time, 'YYYYMMDD') AS "Ticketing Time",
+    departure_date        AS "Departure Date",
+    train_no              AS "Train No.",
+    origin                AS "origin",
+    cars_number           AS "Cars Number",
+    seat_number           AS "Seat Number",
+    origin_code           AS "Origin Code",
+    purchase_date         AS "Purchase Date",
+    purchase_time         AS "Purchase Time",
+    departure_time        AS "Departure Time",
+    destination           AS "destination",
+    destination_code      AS "Destination Code",
+    arrival_date          AS "Arrival Date",
+    arrival_time          AS "Arrival Time",
+    seat_class            AS "Seat Class",
+    ticket_type           AS "Ticket Type",
+    original_ticket_price AS "Original Ticket Price",
+    discount_type         AS "Discount Type",
+    discount_rate         AS "Discount Rate",
+    before_tax_price      AS "Before Tax Price",
+    tax_rate              AS "Tax Rate",
+    after_tax_price       AS "After Tax Price",
+    ticketing_channel     AS "Ticketing Channel",
+    payment_method        AS "Payment Method",
+    trade_no              AS "Trade No",
+    plat_trade_no         AS "PlatTrade No",
+    payment_gateway       AS "Payment Gateway",
+    b2b_partner           AS "B2B Partner"
+FROM hrts_sales;
+
+CREATE OR REPLACE VIEW v_hrts_refund_legacy_compat AS
+SELECT
+    seq_no::TEXT          AS "Seq No",
+    to_char(refund_date, 'YYYYMMDD') AS "Refund date",
+    to_char(cancelation_time, 'YYYY/MM/DD HH24:MI:SS') AS "Cancelation Time",
+    refund_type           AS "Refund Type",
+    refund_person         AS "Refund Person",
+    refund_charge_rate    AS "Refund charge rate",
+    refund_charge         AS "Refund Charge",
+    refund_amount         AS "Refund Amount",
+    refund_trade_no       AS "refundtradeno",
+    plat_trade_no         AS "plattradeno",
+    refund_bank_code      AS "Refund Bank Code",
+    refund_bank_name      AS "Refund Bank Name",
+    refund_method         AS "refundmethod",
+    refund_state          AS "refundstate",
+    refund_account        AS "Refund Account",
+    refund_account_name   AS "Refund Account Name",
+    actual_refund_amount  AS "Actual Refund Amount",
+    passenger_name        AS "Passenger Name",
+    nik_passport_no       AS "NIK/Passport No.",
+    nationality           AS "nationality",
+    order_no              AS "Order No.",
+    ticket_no             AS "Ticket No.",
+    ticketing_station     AS "Ticketing Station",
+    business_area         AS "Business Area",
+    office_no             AS "Office No.",
+    window_no             AS "Window No.",
+    shift_no              AS "Shift No.",
+    operator_name         AS "Operator Name",
+    ticketing_time        AS "Ticketing Time",
+    departure_date        AS "Departure Date",
+    train_no              AS "Train No.",
+    origin                AS "origin",
+    cars_number           AS "Cars Number",
+    seat_number           AS "Seat Number",
+    origin_code           AS "Origin Code",
+    purchase_date         AS "Purchase Date",
+    purchase_time         AS "Purchase Time",
+    departure_time        AS "Departure Time",
+    destination           AS "destination",
+    destination_code      AS "Destination Code",
+    arrival_date          AS "Arrival Date",
+    arrival_time          AS "Arrival Time",
+    seat_class            AS "Seat Class",
+    ticket_type           AS "Ticket Type",
+    original_ticket_price AS "Original Ticket Price"
+FROM hrts_refund;

@@ -1,0 +1,49 @@
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'hpr_secure_jwt_secret_key_2026_super_secret';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '2h';
+
+/**
+ * Hash password polos menggunakan algoritma bcrypt (10 rounds salt).
+ */
+async function hashPassword(plainPassword) {
+  return bcrypt.hash(plainPassword, 10);
+}
+
+/**
+ * Validasi kecocokan password polos dengan hash di database.
+ */
+async function comparePassword(plainPassword, hashedPassword) {
+  return bcrypt.compare(plainPassword, hashedPassword);
+}
+
+/**
+ * Hasilkan JSON Web Token (JWT) dengan masa kedaluwarsa 2 jam.
+ */
+function generateToken(user) {
+  const payload = {
+    id: user.id,
+    username: user.username,
+    full_name: user.full_name,
+    role: user.role,
+  };
+
+  return jwt.sign(payload, JWT_SECRET, {
+    expiresIn: JWT_EXPIRES_IN,
+  });
+}
+
+/**
+ * Verifikasi keabsahan JWT.
+ */
+function verifyToken(token) {
+  return jwt.verify(token, JWT_SECRET);
+}
+
+module.exports = {
+  hashPassword,
+  comparePassword,
+  generateToken,
+  verifyToken,
+};
