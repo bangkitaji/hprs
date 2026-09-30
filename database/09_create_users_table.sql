@@ -33,3 +33,23 @@ SET
     updated_at = CURRENT_TIMESTAMP;
 
 COMMENT ON TABLE users IS 'Tabel pengguna portal ticketing dengan autentikasi & RBAC (administrator vs user)';
+
+-- =====================================================================================
+-- Tabel Riwayat Upload File Excel
+-- =====================================================================================
+CREATE TABLE IF NOT EXISTS upload_history (
+    id SERIAL PRIMARY KEY,
+    file_name VARCHAR(255) NOT NULL,
+    file_size BIGINT DEFAULT 0,
+    sheet_name VARCHAR(100),
+    target_date DATE,
+    total_rows INT DEFAULT 0,
+    inserted_rows INT DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'success',
+    error_message TEXT,
+    duration_ms INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_upload_history_created_at ON upload_history(created_at DESC);
+COMMENT ON TABLE upload_history IS 'Tabel pencatatan riwayat unggah berkas Excel dan audit trail ingestion';
