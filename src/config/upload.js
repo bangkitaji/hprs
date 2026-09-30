@@ -15,7 +15,8 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${uniqueSuffix}-${file.originalname}`);
+    const cleanOriginalName = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_');
+    cb(null, `${uniqueSuffix}-${cleanOriginalName}`);
   },
 });
 
@@ -27,9 +28,15 @@ const upload = multer({
     fileSize: maxUploadSizeMb * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
-    // Validasi ekstensi excel
+    // Validasi ekstensi dan MIME type excel
     const ext = path.extname(file.originalname).toLowerCase();
-    if (ext === '.xlsx' || ext === '.xls') {
+    const allowedExts = ['.xlsx', '.xls'];
+    const allowedMimes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'application/octet-stream',
+    ];
+    if (allowedExts.includes(ext) && (allowedMimes.includes(file.mimetype) || !file.mimetype)) {
       return cb(null, true);
     }
     cb(new Error('Unsupported file format! Please upload an Excel file (.xlsx or .xls)'));

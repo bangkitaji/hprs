@@ -1,28 +1,32 @@
 # PANDUAN DEPLOYMENT PRODUCTION: ARSITEKTUR DATABASE & NGINX SHARED HOSTING
 ### FAREBOX DATA MANAGEMENT — Whoosh High Speed Railway
 **Platform:** PostgreSQL 14 / 15 / 16 • Node.js Express • Nginx Reverse Proxy (Multi-Tenant / Shared Server)  
-**Karakteristik Data:** ~20.000 records/hari (~7,3 juta records/tahun, ~2,7 GB/tahun)  
-**Fokus Solusi:** Range Partitioning Bulanan, BRIN & B-Tree Indexing, Summary Data Mart, Nginx Multi-Stack Isolation, PM2 Cluster Management.
+**Karakteristik Data:** Volume terpasang ~20,8 juta records (~19,2M Sales, ~1,16M Refund, ~485k Okupansi) dengan pertumbuhan harian ~20.000 records/hari (~7,3 juta records/tahun, ~2,7 GB/tahun)  
+**Fokus Solusi:** Range Partitioning Bulanan, BRIN & B-Tree Indexing, Summary Data Mart, Nginx Multi-Stack Isolation, PM2 Cluster Management, Express Security Hardening (Helmet, Rate Limiter, CORS Whitelist, JWT Verification, Fast Catalog Statistics).
 
 ---
 
 ## 1. RINGKASAN ARSITEKTUR
 
-Untuk menjamin performa query laporan manajemen tetap cepat (< 10 milidetik) dan database stabil hingga 5–10 tahun ke depan, arsitektur baru menggunakan struktur 4 pilar:
+Untuk menjamin performa query laporan manajemen tetap cepat (< 10 milidetik) dan database stabil hingga 5–10 tahun ke depan, arsitektur menggunakan struktur 5 pilar utama:
 
 1. **Table Partitioning Bulanan (Declarative Range Partitioning)**:
-   - Tabel `hrts_sales` dipartisi bulanan berdasarkan `purchase_date`.
-   - Tabel `hrts_refund` dipartisi bulanan berdasarkan `refund_date`.
-   - **Manfaat:** *Partition Pruning* membatasi scan disk hanya pada bulan yang diminta laporan (misal: query laporan September 2026 hanya memindai ~600k baris dalam partisi `hrts_sales_2026_09`, mengabaikan 14+ juta baris lainnya).
+   - Tabel `hrts_sales` dipartisi bulanan berdasarkan `purchase_date` (saat ini aktif 36 partisi bulanan 2023–2026 menampung 19,2 juta baris).
+   - Tabel `hrts_refund` dipartisi bulanan berdasarkan `refund_date` (1,16 juta baris).
+   - **Manfaat:** *Partition Pruning* membatasi scan disk hanya pada bulan yang diminta laporan (misal: query laporan September 2026 hanya memindai partisi `hrts_sales_2026_09`, mengabaikan 18+ juta baris lainnya).
 2. **Kombinasi Index Ringan (BRIN + B-Tree)**:
    - **BRIN Index** pada kolom tanggal (`purchase_date`, `departure_date`, `refund_date`). Ukuran index BRIN sangat kecil (hanya puluhan Kilobyte) sehingga sangat hemat RAM dan I/O disk.
    - **B-Tree Index** pada kolom pencarian spesifik (`ticket_no`, `order_no`, dan kolom pelaporan `ticketing_station`, `train_no`).
-3. **Data Mart Agregasi Harian (`daily_sales_summary` & `daily_refund_summary`)**:
+3. **Data Mart Agregasi Harian (`daily_sales_summary` & `daily_refund_summary` & `daily_occupancy_summary`)**:
    - Menyimpan pra-agregasi harian berdasarkan dimensi stasiun, kereta, kelas, channel, dan payment gateway.
    - Dashboard laporan bulanan/tahunan membaca tabel summary yang hanya berisi ratusan baris, bukan jutaan baris data mentah.
 4. **Sanitasi Skema & Penamaan Standar**:
    - Kolom diubah menjadi format standar `snake_case` tanpa spasi atau tanda baca.
    - Tipe data tanggal dan waktu menggunakan tipe asli PostgreSQL (`DATE`, `TIME`, `TIMESTAMP`).
+5. **Keamanan & Ketahanan Server Produksi**:
+   - HTTP Security Headers via **Helmet** (`nosniff`, `X-Frame-Options`, CSP).
+   - Proteksi Brute-Force & DoS via **Express Rate Limit** (10 percobaan login / 15 menit, 600 req/menit API).
+   - Endpoint statistik dashboard menggunakan **Fast Catalog Metadata Estimation** (~140ms) dengan in-memory cache TTL, mencegah CPU exhaustion database.
 
 ---
 
@@ -31,9 +35,8 @@ Untuk menjamin performa query laporan manajemen tetap cepat (< 10 milidetik) dan
 Sebelum mengeksekusi di server production, pastikan kriteria berikut terpenuhi:
 
 * [ ] **Cek Ukuran & Estimasi Storage Database**:
-  - Data mentah sales saat ini: ~5,5 GB; refund: ~0,5 GB.
-  - Saat proses migrasi, tabel lama dan tabel baru akan berdampingan sementara (memerlukan ruang tambahan ~6–8 GB).
-  - **Jika punya akses OS server:** Cek partisi disk bebas minimal 15–20 GB (`df -h`).
+  - Data saat ini: `hrts_sales` ~6,8 GB (19.192.765 baris); `hrts_refund` ~0,6 GB (1.158.267 baris); `hrts_occupancy` ~0,2 GB (484.710 baris). Total storage terpakai ~8,5 GB.
+  - Saat proses migrasi atau re-indeksasi, pastikan partisi disk server memiliki sisa bebas minimal **15–20 GB** (`df -h`).
   - **Jika HANYA punya akses database:** Jalankan query berikut di DBeaver/pgAdmin untuk memeriksa ukuran saat ini:
     ```sql
     SELECT pg_size_pretty(pg_database_size(current_database())) AS total_db_size;
@@ -49,7 +52,7 @@ Sebelum mengeksekusi di server production, pastikan kriteria berikut terpenuhi:
     pg_dump -h <host_database> -p 5432 -U <user_database> -d hpr_portal -Fc -f "backup_hpr_portal_pre_migration.dump"
     ```
 * [ ] **Waktu Eksekusi (Maintenance Window)**:
-  - Waktu migrasi 14,7 juta baris membutuhkan waktu sekitar **6 – 12 menit**.
+  - Waktu migrasi / verifikasi data masif membutuhkan waktu sekitar **6 – 12 menit**.
   - Pilih jadwal saat tidak ada proses import harian yang sedang aktif (misal pukul 23:00 – 04:00 WIB).
 
 ---
@@ -57,26 +60,55 @@ Sebelum mengeksekusi di server production, pastikan kriteria berikut terpenuhi:
 ## 3. PANDUAN EKSEKUSI STEP-BY-STEP DI PRODUCTION
 
 > [!IMPORTANT]
-> **PILIHAN JALUR EKSEKUSI BERDASARKAN HAK AKSES ANDA:**
-> - **JALUR 1 (HANYA AKSES DATABASE):** Jika Anda **TIDAK BISA** SSH / remote desktop ke server database (misal: AWS RDS, Cloud SQL, atau database dikelola tim DBA). Seluruh script SQL dijalankan melalui **SQL Client (DBeaver, pgAdmin, DataGrip)** dari komputer Anda.
-> - **JALUR 2 (AKSES SERVER OS PENUH):** Jika Anda memiliki akses terminal / PowerShell langsung di server database.
+> **PILIHAN JALUR EKSEKUSI BERDASARKAN KEBUTUHAN & HAK AKSES:**
+> - **JALUR 1 (OTOMATIS & CROSS-PLATFORM — SANGAT DIREKOMENDASIKAN):** Menggunakan script runner bawaan `npm run migrate` (atau `node migrate.js`). Skrip ini membaca konfigurasi dari `.env`, membuat seluruh skema partisi, table switching aman, views kompatibilitas, modul okupansi, dan seeding user RBAC secara otomatis dalam 1 langkah.
+> - **JALUR 2 (HANYA AKSES DATABASE):** Jika Anda **TIDAK BISA** SSH ke server database (misal: AWS RDS, Cloud SQL, atau DB terpisah). Seluruh script SQL di folder `database/` dijalankan manual melalui **SQL Client (DBeaver, pgAdmin)**.
+> - **JALUR 3 (AKSES SERVER OS / POWERSHELL):** Jika Anda berada di server Windows dan ingin menjalankan runner PowerShell `database/run_migration.ps1`.
 
-Seluruh script DDL dan migrasi telah tersedia di folder `d:\project\hpr\database\`:
+### Struktur Repositori Siap Produksi
 
+```text
+├── .env                              # Variabel lingkungan runtime lokal/server (tidak di-commit ke git)
+├── .env.example                      # Template konfigurasi deployment produksi
+├── .gitignore                        # Konfigurasi pengecualian git
+├── PRODUCTION_DEPLOYMENT_GUIDE.md    # Dokumen panduan ini
+├── ecosystem.config.js               # Konfigurasi cluster PM2 untuk App Server
+├── migrate.js                        # Script runner resmi migrasi database (npm run migrate)
+├── nginx-farebox.conf                # Template konfigurasi reverse proxy Nginx + SSL
+├── package.json & package-lock.json  # Manajemen dependensi Node.js
+├── server.js                         # Application entrypoint & HTTP server bootstrap
+├── database/                         # Skrip SQL skema partisi, data mart, views & RBAC
+│   ├── 00_tuning_postgresql.sql
+│   ├── 01_create_partitioned_sales.sql
+│   ├── 02_create_partitioned_refund.sql
+│   ├── 03_create_summary_tables.sql
+│   ├── 04_migrate_data.sql
+│   ├── 05_switch_tables.sql
+│   ├── 06_daily_ingestion_sample.sql
+│   ├── 07_create_views_compatibility.sql
+│   ├── 08_create_occupancy_tables.sql
+│   ├── 09_create_users_table.sql
+│   └── run_migration.ps1
+├── public/                           # Frontend UI (HTML, CSS, JS, Assets)
+├── scripts/                          # Skrip utilitas/maintenance ETL data historis (dump SQL)
+│   ├── import_sales.js
+│   ├── import_refund.js
+│   └── import_occupancy.js
+├── src/                              # Source code backend (Express controllers, services, middlewares)
+└── uploads/                          # Direktori runtime penyimpanan upload berkas Excel (.gitkeep)
 ```
-d:\project\hpr\database\
-├── 00_tuning_postgresql.sql
-├── 01_create_partitioned_sales.sql
-├── 02_create_partitioned_refund.sql
-├── 03_create_summary_tables.sql
-├── 04_migrate_data.sql
-├── 05_switch_tables.sql
-├── 06_daily_ingestion_sample.sql
-├── 07_create_views_compatibility.sql
-├── 08_create_occupancy_tables.sql
-├── 09_create_users_table.sql
-└── run_migration.ps1
-```
+
+---
+
+### Jalur Eksekusi Utama (JALUR 1): Otomatisasi via `npm run migrate`
+
+Jika Anda berada di App Server atau memiliki Node.js yang terhubung ke database:
+1. Pastikan file `.env` telah dikonfigurasi dengan kredensial database target yang benar (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`).
+2. Jalankan perintah migrasi:
+   ```bash
+   npm run migrate
+   ```
+   *Skrip akan secara berurutan dan otomatis mengeksekusi DDL sales, refund, summary mart, table switching, views, okupansi, dan seed user default (`admin` & `operator`).*
 
 ---
 
@@ -98,7 +130,7 @@ SET random_page_cost = 1.1;                      -- Optimasi scan SSD/NVMe
 Jalankan script tuning menggunakan `psql` dan restart service:
 ```powershell
 $env:PGPASSWORD='password_production'
-& psql -U postgres -h localhost -d hpr_portal -f "d:\project\hpr\database\00_tuning_postgresql.sql"
+& psql -U postgres -h localhost -d hpr_portal -f "./database/00_tuning_postgresql.sql"
 Restart-Service postgresql-x64-16
 ```
 
@@ -114,9 +146,9 @@ Buka tab **SQL Editor** yang terhubung ke database `hpr_portal`, lalu buka dan e
 
 #### Jika Melalui Server OS / Terminal:
 ```powershell
-& psql -U <user> -h <host> -d hpr_portal -f "d:\project\hpr\database\01_create_partitioned_sales.sql"
-& psql -U <user> -h <host> -d hpr_portal -f "d:\project\hpr\database\02_create_partitioned_refund.sql"
-& psql -U <user> -h <host> -d hpr_portal -f "d:\project\hpr\database\03_create_summary_tables.sql"
+& psql -U <user> -h <host> -d hpr_portal -f "./database/01_create_partitioned_sales.sql"
+& psql -U <user> -h <host> -d hpr_portal -f "./database/02_create_partitioned_refund.sql"
+& psql -U <user> -h <host> -d hpr_portal -f "./database/03_create_summary_tables.sql"
 ```
 
 ---
@@ -138,7 +170,7 @@ Buka file [`04_migrate_data.sql`](database/04_migrate_data.sql) di DBeaver / pgA
 #### Jika Melalui Script Runner PowerShell (dari Laptop / Mesin Kerja):
 Edit baris koneksi `$psql` dan `-h <ip_host_database>` di file [`run_migration.ps1`](database/run_migration.ps1), lalu jalankan:
 ```powershell
-& powershell.exe -ExecutionPolicy Bypass -File "d:\project\hpr\database\run_migration.ps1"
+& powershell.exe -ExecutionPolicy Bypass -File "./database/run_migration.ps1"
 ```
 
 ---
@@ -172,7 +204,7 @@ Jika validasi berhasil, ubah nama tabel partisi baru menjadi tabel utama:
 - **Di DBeaver / pgAdmin:** Buka file [`05_switch_tables.sql`](database/05_switch_tables.sql) ➔ Klik **Execute Script (Alt+X)**.
 - **Via Terminal:**
   ```powershell
-  & psql -U <user> -h <host> -d hpr_portal -f "d:\project\hpr\database\05_switch_tables.sql"
+  & psql -U <user> -h <host> -d hpr_portal -f "./database/05_switch_tables.sql"
   ```
 *Tabel lama akan otomatis berubah menjadi `hrts_sales_legacy` dan `hrts_refund_legacy` (tersimpan utuh sebagai backup).*
 
@@ -184,7 +216,7 @@ Jika aplikasi atau script lama masih membutuhkan nama kolom dengan spasi (`"Pass
 - **Di DBeaver / pgAdmin:** Buka file [`07_create_views_compatibility.sql`](database/07_create_views_compatibility.sql) ➔ Klik **Execute Script (Alt+X)**.
 - **Via Terminal:**
   ```powershell
-  & psql -U <user> -h <host> -d hpr_portal -f "d:\project\hpr\database\07_create_views_compatibility.sql"
+  & psql -U <user> -h <host> -d hpr_portal -f "./database/07_create_views_compatibility.sql"
   ```
 Aplikasi lama dapat membaca view `v_hrts_sales_legacy_compat` tanpa perlu mengubah kode SQL lama seketika.
 
@@ -255,7 +287,7 @@ Inisialisasi tabel okupansi `hrts_occupancy`, tabel summary harian `hrts_daily_o
 - **Di DBeaver / pgAdmin:** Buka file [`08_create_occupancy_tables.sql`](database/08_create_occupancy_tables.sql) ➔ Klik **Execute Script (Alt+X)**.
 - **Via Terminal / psql:**
   ```powershell
-  & psql -U <user> -h <host> -d hpr_portal -f "d:\project\hpr\database\08_create_occupancy_tables.sql"
+  & psql -U <user> -h <host> -d hpr_portal -f "./database/08_create_occupancy_tables.sql"
   ```
 *Stored procedure `sp_refresh_daily_summary(p_target_date)` akan otomatis mengagregasi data Sales, Refund, dan Okupansi secara konsisten.*
 
@@ -267,7 +299,7 @@ Inisialisasi tabel pengguna `users` dan pembuatan akun default (Administrator & 
 - **Di DBeaver / pgAdmin:** Buka file [`09_create_users_table.sql`](database/09_create_users_table.sql) ➔ Klik **Execute Script (Alt+X)**.
 - **Via Terminal / psql:**
   ```powershell
-  & psql -U <user> -h <host> -d hpr_portal -f "d:\project\hpr\database\09_create_users_table.sql"
+  & psql -U <user> -h <host> -d hpr_portal -f "./database/09_create_users_table.sql"
   ```
 *Akun default yang terbentuk:*
 - **Administrator:** username `admin`, password `Admin@123`
@@ -729,8 +761,15 @@ Seluruh inisialisasi tabel, partisi, view, dan stored procedure dijalankan langs
 > 3. Lanjutkan ke **Batch 2 (2024 H1)**, lalu **Batch 3**, dan seterusnya.
 > 4. Setiap batch independen dan idempoten (`ON CONFLICT DO NOTHING`). Jika koneksi putus di tengah Batch 3, Anda cukup mengulang Batch 3 tanpa mengulang Batch 1 dan 2.
 
-#### Eksekusi Otomatis via Remote CLI (Alternatif jika dari Linux App Server):
-Jika Anda berada di terminal App Server yang memiliki `psql`:
+#### Eksekusi Otomatis via npm run migrate (SANGAT DIREKOMENDASIKAN):
+Jika Anda berada di terminal App Server (`/var/www/farebox`):
+```bash
+npm run migrate
+```
+*Script runner Node.js ini secara otomatis menyambung ke server database via pool, mengeksekusi script DDL 01, 02, 03, melakukan table switching aman, membuat compatibility views, modul okupansi, dan seeding user default.*
+
+#### Eksekusi Manual via Remote CLI psql (Alternatif):
+Jika Anda ingin mengeksekusi berkas SQL satu per satu secara remote:
 ```bash
 export PGPASSWORD="<password_database>"
 DB_HOST="<ip_host_database>"
@@ -753,7 +792,7 @@ done
 
 ---
 
-### 8.6. Konfigurasi Aplikasi Node.js di App Server
+### 8.6. Konfigurasi Aplikasi Node.js di App Server & Security Hardening
 
 Di server aplikasi tempat Node.js Express berjalan (`/var/www/farebox`), sesuaikan file `.env`:
 
@@ -775,11 +814,27 @@ DB_PASSWORD=PasswordKuatDatabase123!
 DB_MAX_CONNECTIONS=15
 DB_SSL=false
 
-# Upload & Keamanan
+# Batas Maksimal Upload Berkas Excel (MB)
 MAX_UPLOAD_SIZE_MB=100
-JWT_SECRET=FareboxSecretKeyWhoosh2026ProductionSecured!
+
+# Keamanan Autentikasi (JWT)
+# PENTING: Wajib diisi dengan random key 64-karakter acak.
+# Generate via terminal: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+JWT_SECRET=c8e19b48f615f2066d7ad5fbb128e938167f5e18ef9bcf51e97d8b584d943ad6
 JWT_EXPIRES_IN=8h
+
+# CORS & Domain Whitelist (Pisahkan dengan koma jika lebih dari satu)
+ALLOWED_ORIGINS=https://farebox.kcic.co.id
 ```
+
+#### Fitur Keamanan Terintegrasi pada Backend:
+1. **Helmet HTTP Headers:** Melindungi aplikasi dari serangan clickjacking (`X-Frame-Options: SAMEORIGIN`), MIME-sniffing (`X-Content-Type-Options: nosniff`), dan cross-site scripting (CSP).
+2. **Rate Limiting:**
+   - Endpoint login (`POST /api/auth/login`): Maksimal **10 kali percobaan gagal per 15 menit per IP** untuk mencegah serangan *brute force* dan *credential stuffing*.
+   - Rute API umum (`/api/*`): Maksimal **600 request per menit per IP** untuk mencegah *resource exhaustion* / DoS.
+3. **Optimasi Dashboard Stats (Anti-CPU Exhaustion):**
+   - Mengingat tabel `hrts_sales` menampung lebih dari **19,2 juta baris**, endpoint `/api/stats` tidak lagi melakukan `SELECT count(*)` partisi penuh yang memakan waktu belasan detik.
+   - Menggunakan query estimasi metadata katalog PostgreSQL (`pg_inherits` + `pg_class.reltuples`) yang selesai dalam **~140 milidetik**, disertai *in-memory cache TTL* 30 detik dan invalidasi otomatis saat ada upload data baru.
 
 #### Aturan Ukuran Connection Pool (`DB_MAX_CONNECTIONS`):
 Karena server database mungkin digunakan bersama oleh aplikasi lain (PHP, Python, atau database lain di host tersebut):

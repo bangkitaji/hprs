@@ -16,6 +16,7 @@ const {
   OCCUPANCY_DB_FIELDS,
 } = require('../constants/fieldMaps');
 const { logUploadHistory } = require('./historyService');
+const { invalidateStatsCache } = require('./statsService');
 
 const BATCH_SIZE = 1000;
 
@@ -391,6 +392,8 @@ async function processExcelIngestion({ tempFilePath, originalName, fileSize, sel
       status: 'success',
       durationMs: results.durationMs,
     });
+
+    invalidateStatsCache();
 
     return results;
   } catch (err) {

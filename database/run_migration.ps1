@@ -3,13 +3,17 @@
 # Runner Script untuk Migrasi Seluruh Data Historis ke Skema Berpartisi
 # =====================================================================================
 
-$env:PGPASSWORD = 'Sukma@123098!@'
-$psql = "D:\postgre\bin\psql.exe"
+if (-not $env:PGPASSWORD) {
+    $env:PGPASSWORD = Read-Host -Prompt "Masukkan Password PostgreSQL" -AsSecureString
+    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($env:PGPASSWORD)
+    $env:PGPASSWORD = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+}
+$psql = if (Get-Command psql -ErrorAction SilentlyContinue) { "psql" } elseif (Test-Path "D:\postgre\bin\psql.exe") { "D:\postgre\bin\psql.exe" } else { "psql" }
 
 function Execute-Batch ($label, $sql) {
     Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Memulai $label..." -ForegroundColor Cyan
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    $sql | & $psql -U postgres -h localhost -d hpr_portal
+    $sql | & $psql -U ($env:PGUSER ?? "postgres") -h ($env:PGHOST ?? "localhost") -d ($env:PGDATABASE ?? "hpr_portal")
     $sw.Stop()
     Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Selesai $label dalam $($sw.Elapsed.TotalSeconds.ToString('F1')) detik." -ForegroundColor Green
 }

@@ -8,10 +8,10 @@ async function getUploadHistory(params = {}) {
   let limit = 10;
 
   if (typeof params === 'number') {
-    limit = Math.max(1, params);
+    limit = Math.min(100, Math.max(1, params));
   } else if (params && typeof params === 'object') {
     if (params.page !== undefined) page = Math.max(1, parseInt(params.page, 10) || 1);
-    if (params.limit !== undefined) limit = Math.max(1, parseInt(params.limit, 10) || 10);
+    if (params.limit !== undefined) limit = Math.min(100, Math.max(1, parseInt(params.limit, 10) || 10));
   }
 
   const offset = (page - 1) * limit;
