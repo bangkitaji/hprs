@@ -926,6 +926,7 @@ async function loadUsers() {
           : `<span class="role-pill role-user">Standard User</span>`;
 
         const isSelf = currentUser && currentUser.id === u.id;
+        const resetBtn = `<button class="btn-action-pwd" onclick="openAdminResetModal(${u.id}, '${escapeHtml(u.username)}')" title="Change password for this user"><i class="fa-solid fa-key"></i> Reset Password</button>`;
         const deleteBtn = isSelf
           ? `<button class="btn-delete-user" disabled title="You cannot delete your active account"><i class="fa-solid fa-lock"></i> Active Account</button>`
           : `<button class="btn-delete-user" onclick="handleDeleteUser(${u.id}, '${escapeHtml(u.username)}')"><i class="fa-solid fa-trash"></i> Delete</button>`;
@@ -939,7 +940,12 @@ async function loadUsers() {
             <td><strong>${escapeHtml(u.full_name)}</strong></td>
             <td>${rolePill}</td>
             <td>${createdDate}</td>
-            <td style="text-align:center;">${deleteBtn}</td>
+            <td style="text-align:center;">
+              <div class="user-actions-group">
+                ${resetBtn}
+                ${deleteBtn}
+              </div>
+            </td>
           </tr>
         `;
       })
@@ -1039,4 +1045,217 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// =====================================================================================
+// 11. CHANGE PASSWORD & PASSWORD MANAGEMENT
+// =====================================================================================
+
+function handleModalOverlayClick(e, modalId) {
+  if (e.target && e.target.id === modalId) {
+    if (modalId === 'change-password-modal') closeChangePasswordModal();
+    if (modalId === 'admin-reset-modal') closeAdminResetModal();
+  }
+}
+
+// Global Escape key listener to close modals
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeChangePasswordModal();
+    closeAdminResetModal();
+  }
+});
+
+/**
+ * Open self-service change password modal (all users)
+ */
+function openChangePasswordModal() {
+  const modal = document.getElementById('change-password-modal');
+  if (!modal) return;
+
+  const alertBox = document.getElementById('change-password-alert');
+  if (alertBox) alertBox.classList.add('hidden');
+
+  const form = document.getElementById('change-password-form');
+  if (form) form.reset();
+
+  // Reset password inputs to type='password' and toggle icons
+  ['current-password', 'new-user-password', 'confirm-user-password'].forEach((id) => {
+    const input = document.getElementById(id);
+    if (input) input.type = 'password';
+  });
+  modal.querySelectorAll('.btn-toggle-password i').forEach((icon) => {
+    icon.className = 'fa-solid fa-eye';
+  });
+
+  modal.classList.remove('hidden');
+  const currentPwdInput = document.getElementById('current-password');
+  if (currentPwdInput) currentPwdInput.focus();
+}
+
+function closeChangePasswordModal() {
+  const modal = document.getElementById('change-password-modal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  const alertBox = document.getElementById('change-password-alert');
+  if (alertBox) alertBox.classList.add('hidden');
+}
+
+/**
+ * Submit self-service change password
+ */
+async function handleChangePassword(e) {
+  e.preventDefault();
+  const alertBox = document.getElementById('change-password-alert');
+  const submitBtn = document.getElementById('btn-submit-change-password');
+
+  const currentPassword = document.getElementById('current-password').value;
+  const newPassword = document.getElementById('new-user-password').value;
+  const confirmPassword = document.getElementById('confirm-user-password').value;
+
+  if (newPassword !== confirmPassword) {
+    alertBox.className = 'alert-box alert-error';
+    alertBox.innerText = 'New password confirmation does not match. Please ensure both fields are identical.';
+    alertBox.classList.remove('hidden');
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    alertBox.className = 'alert-box alert-error';
+    alertBox.innerText = 'New password must be at least 6 characters.';
+    alertBox.classList.remove('hidden');
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving Password...';
+  alertBox.classList.add('hidden');
+
+  try {
+    const res = await authFetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to change password.');
+    }
+
+    alertBox.className = 'alert-box alert-success';
+    alertBox.innerText = data.message || 'Password changed successfully!';
+    alertBox.classList.remove('hidden');
+
+    document.getElementById('change-password-form').reset();
+
+    setTimeout(() => {
+      closeChangePasswordModal();
+    }, 1800);
+  } catch (err) {
+    alertBox.className = 'alert-box alert-error';
+    alertBox.innerText = err.message;
+    alertBox.classList.remove('hidden');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save New Password';
+  }
+}
+
+/**
+ * Open administrator reset password modal for target user
+ */
+function openAdminResetModal(userId, username) {
+  const modal = document.getElementById('admin-reset-modal');
+  if (!modal) return;
+
+  const alertBox = document.getElementById('admin-reset-alert');
+  if (alertBox) alertBox.classList.add('hidden');
+
+  const form = document.getElementById('admin-reset-form');
+  if (form) form.reset();
+
+  document.getElementById('admin-reset-user-id').value = userId;
+  document.getElementById('admin-reset-username').innerText = username;
+
+  ['admin-new-password', 'admin-confirm-password'].forEach((id) => {
+    const input = document.getElementById(id);
+    if (input) input.type = 'password';
+  });
+  modal.querySelectorAll('.btn-toggle-password i').forEach((icon) => {
+    icon.className = 'fa-solid fa-eye';
+  });
+
+  modal.classList.remove('hidden');
+  const newPwdInput = document.getElementById('admin-new-password');
+  if (newPwdInput) newPwdInput.focus();
+}
+
+function closeAdminResetModal() {
+  const modal = document.getElementById('admin-reset-modal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  const alertBox = document.getElementById('admin-reset-alert');
+  if (alertBox) alertBox.classList.add('hidden');
+}
+
+/**
+ * Submit administrator reset password for target user
+ */
+async function handleAdminResetPassword(e) {
+  e.preventDefault();
+  const alertBox = document.getElementById('admin-reset-alert');
+  const submitBtn = document.getElementById('btn-submit-admin-reset');
+
+  const userId = document.getElementById('admin-reset-user-id').value;
+  const newPassword = document.getElementById('admin-new-password').value;
+  const confirmPassword = document.getElementById('admin-confirm-password').value;
+
+  if (newPassword !== confirmPassword) {
+    alertBox.className = 'alert-box alert-error';
+    alertBox.innerText = 'New password confirmation does not match.';
+    alertBox.classList.remove('hidden');
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    alertBox.className = 'alert-box alert-error';
+    alertBox.innerText = 'New password must be at least 6 characters.';
+    alertBox.classList.remove('hidden');
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Updating...';
+  alertBox.classList.add('hidden');
+
+  try {
+    const res = await authFetch(`/api/users/${userId}/password`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newPassword, confirmPassword }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to reset user password.');
+    }
+
+    alertBox.className = 'alert-box alert-success';
+    alertBox.innerText = data.message || 'Password updated successfully!';
+    alertBox.classList.remove('hidden');
+
+    document.getElementById('admin-reset-form').reset();
+
+    setTimeout(() => {
+      closeAdminResetModal();
+    }, 1800);
+  } catch (err) {
+    alertBox.className = 'alert-box alert-error';
+    alertBox.innerText = err.message;
+    alertBox.classList.remove('hidden');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fa-solid fa-user-check"></i> Update Password';
+  }
 }

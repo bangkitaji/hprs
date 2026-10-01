@@ -47,8 +47,28 @@ async function deleteUser(req, res, next) {
   }
 }
 
+/**
+ * Controller untuk endpoint PUT /api/users/:id/password
+ * Administrator mereset password user manapun
+ */
+async function updateUserPassword(req, res, next) {
+  try {
+    const targetUserId = req.params.id;
+    const { newPassword, confirmPassword } = req.body;
+    const result = await userService.adminResetPassword(
+      targetUserId,
+      newPassword,
+      confirmPassword
+    );
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listUsers,
   createUser,
   deleteUser,
+  updateUserPassword,
 };

@@ -9,6 +9,7 @@ router.use(requireRole('administrator'));
 
 router.get('/', userController.listUsers);
 router.post('/', userController.createUser);
+router.put('/:id/password', userController.updateUserPassword);
 router.delete('/:id', userController.deleteUser);
 
 module.exports = router;

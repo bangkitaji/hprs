@@ -38,6 +38,10 @@
             <span class="role-pill" id="user-display-role">Role</span>
           </div>
         </div>
+        <button class="btn-change-password" id="btn-change-password" onclick="openChangePasswordModal()" title="Change your password">
+          <i class="fa-solid fa-key"></i>
+          <span>Change Password</span>
+        </button>
         <button class="btn-logout" id="btn-logout" onclick="logout()" title="Sign out of system">
           <i class="fa-solid fa-arrow-right-from-bracket"></i>
           <span>Logout</span>
@@ -435,6 +439,115 @@
         <button type="submit" class="btn btn-primary btn-block" id="btn-submit-login">
           <i class="fa-solid fa-arrow-right-to-bracket"></i> Sign In to System
         </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL CHANGE PASSWORD (ALL USERS) -->
+  <div id="change-password-modal" class="modal-overlay hidden" onclick="handleModalOverlayClick(event, 'change-password-modal')">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-header-icon">
+          <i class="fa-solid fa-key"></i>
+        </div>
+        <div class="modal-title-wrap">
+          <h2 class="modal-title">Change Password</h2>
+          <p class="modal-subtitle">Update your account password to ensure account security.</p>
+        </div>
+        <button type="button" class="btn-close-modal" onclick="closeChangePasswordModal()" title="Close" aria-label="Close">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="change-password-form" onsubmit="handleChangePassword(event)" class="modal-form">
+        <div id="change-password-alert" class="alert-box hidden"></div>
+
+        <div class="form-group">
+          <label for="current-password"><i class="fa-solid fa-lock"></i> Current Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="current-password" class="form-control" placeholder="Enter current password" required autocomplete="current-password">
+            <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('current-password', this)" title="Show password" aria-label="Show password">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="new-user-password"><i class="fa-solid fa-key"></i> New Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="new-user-password" class="form-control" placeholder="Minimum 6 characters" required minlength="6" autocomplete="new-password">
+            <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('new-user-password', this)" title="Show password" aria-label="Show password">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="confirm-user-password"><i class="fa-solid fa-check-double"></i> Confirm New Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="confirm-user-password" class="form-control" placeholder="Re-type new password" required minlength="6" autocomplete="new-password">
+            <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('confirm-user-password', this)" title="Show password" aria-label="Show password">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-change-password">
+            <i class="fa-solid fa-floppy-disk"></i> Save New Password
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL RESET PASSWORD BY ADMIN (USER MANAGEMENT) -->
+  <div id="admin-reset-modal" class="modal-overlay hidden" onclick="handleModalOverlayClick(event, 'admin-reset-modal')">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-header-icon admin-icon">
+          <i class="fa-solid fa-user-shield"></i>
+        </div>
+        <div class="modal-title-wrap">
+          <h2 class="modal-title">Reset User Password</h2>
+          <p class="modal-subtitle">Set a new password for: <strong id="admin-reset-username" style="color: #60A5FA;">-</strong></p>
+        </div>
+        <button type="button" class="btn-close-modal" onclick="closeAdminResetModal()" title="Close" aria-label="Close">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="admin-reset-form" onsubmit="handleAdminResetPassword(event)" class="modal-form">
+        <div id="admin-reset-alert" class="alert-box hidden"></div>
+        <input type="hidden" id="admin-reset-user-id" value="">
+
+        <div class="form-group">
+          <label for="admin-new-password"><i class="fa-solid fa-key"></i> New Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="admin-new-password" class="form-control" placeholder="Minimum 6 characters" required minlength="6" autocomplete="new-password">
+            <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('admin-new-password', this)" title="Show password" aria-label="Show password">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="admin-confirm-password"><i class="fa-solid fa-check-double"></i> Confirm New Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="admin-confirm-password" class="form-control" placeholder="Re-type new password" required minlength="6" autocomplete="new-password">
+            <button type="button" class="btn-toggle-password" onclick="togglePasswordVisibility('admin-confirm-password', this)" title="Show password" aria-label="Show password">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeAdminResetModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-admin-reset">
+            <i class="fa-solid fa-user-check"></i> Update Password
+          </button>
+        </div>
       </form>
     </div>
   </div>
