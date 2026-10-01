@@ -38,6 +38,27 @@ function isTokenExpired(token) {
   }
 }
 
+let sessionCheckInterval = null;
+
+/**
+ * Monitor session token expiration periodically in the background (every 30s)
+ */
+function startSessionMonitor() {
+  if (sessionCheckInterval) {
+    clearInterval(sessionCheckInterval);
+  }
+  sessionCheckInterval = setInterval(() => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token || isTokenExpired(token)) {
+      if (sessionCheckInterval) {
+        clearInterval(sessionCheckInterval);
+        sessionCheckInterval = null;
+      }
+      logout('Your session has expired (60-minute limit). Please sign in again.');
+    }
+  }, 30000);
+}
+
 function initAuth() {
   const token = localStorage.getItem(TOKEN_KEY);
   const savedUser = localStorage.getItem(USER_KEY);
@@ -52,7 +73,7 @@ function initAuth() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     currentUser = null;
-    showLoginModal('Your session has expired. Please sign in again.');
+    showLoginModal('Your session has expired (60-minute limit). Please sign in again.');
     return;
   }
 
@@ -60,6 +81,7 @@ function initAuth() {
     currentUser = JSON.parse(savedUser);
     hideLoginModal();
     applyUserSession(currentUser);
+    startSessionMonitor();
   } catch (err) {
     logout();
   }
@@ -134,6 +156,7 @@ async function handleLogin(e) {
 
     hideLoginModal();
     applyUserSession(currentUser);
+    startSessionMonitor();
 
     passwordInput.value = '';
   } catch (err) {
@@ -146,13 +169,17 @@ async function handleLogin(e) {
   }
 }
 
-function logout() {
+function logout(message = 'You have successfully signed out.') {
+  if (sessionCheckInterval) {
+    clearInterval(sessionCheckInterval);
+    sessionCheckInterval = null;
+  }
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   sessionStorage.removeItem('hpr_active_tab');
   currentUser = null;
   resetUpload();
-  showLoginModal('You have successfully signed out.');
+  showLoginModal(message);
 }
 
 /**
@@ -247,12 +274,16 @@ async function authFetch(url, options = {}) {
   const response = await fetch(url, { ...options, headers });
 
   if (response.status === 401) {
+    if (sessionCheckInterval) {
+      clearInterval(sessionCheckInterval);
+      sessionCheckInterval = null;
+    }
     // Token invalid or expired
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     sessionStorage.removeItem('hpr_active_tab');
     currentUser = null;
-    showLoginModal('Your session has expired. Please sign in again.');
+    showLoginModal('Your session has expired (60-minute limit). Please sign in again.');
     throw new Error('Session expired. Please sign in again.');
   }
 

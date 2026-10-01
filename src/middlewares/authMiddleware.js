@@ -21,7 +21,7 @@ function authenticate(req, res, next) {
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
       return res.status(401).json({
-        error: 'Your session has expired (2-hour limit). Please sign in again.',
+        error: 'Your session has expired (60-minute limit). Please sign in again.',
       });
     }
     return res.status(401).json({

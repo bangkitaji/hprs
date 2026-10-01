@@ -12,7 +12,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_DEV_SECRET;
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '2h';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '60m';
 
 /**
  * Hash password polos menggunakan algoritma bcrypt (10 rounds salt).
@@ -29,7 +29,7 @@ async function comparePassword(plainPassword, hashedPassword) {
 }
 
 /**
- * Hasilkan JSON Web Token (JWT) dengan masa kedaluwarsa 2 jam.
+ * Hasilkan JSON Web Token (JWT) dengan masa kedaluwarsa sesi (default 60 menit).
  */
 function generateToken(user) {
   const payload = {
