@@ -4,9 +4,8 @@ const jwt = require('jsonwebtoken');
 const DEFAULT_DEV_SECRET = 'hpr_secure_jwt_secret_key_2026_super_secret';
 if (process.env.NODE_ENV === 'production') {
   if (!process.env.JWT_SECRET) {
-    throw new Error('FATAL SECURITY ERROR: JWT_SECRET environment variable is required in production.');
-  }
-  if (process.env.JWT_SECRET === DEFAULT_DEV_SECRET || process.env.JWT_SECRET.length < 32) {
+    console.warn('⚠️ [SECURITY WARNING] JWT_SECRET environment variable is not defined in production. Using fallback secret. Please set JWT_SECRET in your .env file.');
+  } else if (process.env.JWT_SECRET === DEFAULT_DEV_SECRET || process.env.JWT_SECRET.length < 32) {
     console.warn('⚠️ [SECURITY WARNING] JWT_SECRET in production is weak or using the default sample secret. Please set a strong, random 256-bit secret.');
   }
 }

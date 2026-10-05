@@ -3,7 +3,8 @@
  * Application Entry Point & Server Bootstrap
  */
 
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
 const app = require('./src/app');
 const { pool } = require('./src/config/database');
