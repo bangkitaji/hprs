@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS hrts_refund_p (
     seat_class              VARCHAR(50),
     ticket_type             VARCHAR(50),
     original_ticket_price   NUMERIC(12, 2) DEFAULT 0,
+    add_refund_status_ticket VARCHAR(100),
     created_at              TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_hrts_refund_p PRIMARY KEY (order_no, ticket_no, refund_date)
 ) PARTITION BY RANGE (refund_date);

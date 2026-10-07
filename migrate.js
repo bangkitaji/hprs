@@ -97,6 +97,12 @@ async function runMigration() {
       console.log('      ✅ Tabel partisi hrts_refund_p aktif sebagai hrts_refund.');
     }
 
+    // Pastikan kolom penyesuaian status tiket selalu tersedia di hrts_sales & hrts_refund
+    await client.query('ALTER TABLE IF EXISTS hrts_sales ADD COLUMN IF NOT EXISTS add_sales_status_ticket VARCHAR(100);');
+    await client.query('ALTER TABLE IF EXISTS hrts_refund ADD COLUMN IF NOT EXISTS add_refund_status_ticket VARCHAR(100);');
+    console.log('      ✅ Verifikasi kolom status tiket (add_sales_status_ticket & add_refund_status_ticket) selesai.');
+
+
     // 6. Skrip 07 & 08: Views Kompatibilitas, Okupansi & Stored Procedure
     console.log('\n[6/7] ⏳ Menyiapkan view kompatibilitas, skema okupansi, dan stored procedure agregasi...');
     const sqlCompat = readSqlFile('07_create_views_compatibility.sql');

@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS hrts_sales_p (
     plat_trade_no           VARCHAR(100),
     payment_gateway         VARCHAR(50),
     b2b_partner             VARCHAR(50),
+    add_sales_status_ticket VARCHAR(100),
     created_at              TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_hrts_sales_p PRIMARY KEY (order_no, ticket_no, purchase_date)
 ) PARTITION BY RANGE (purchase_date);
