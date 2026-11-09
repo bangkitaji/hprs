@@ -6,11 +6,19 @@
  * menggunakan konfigurasi kredensial dari file .env.
  */
 
-require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const { pool } = require('./src/config/database');
+const dotenv = require('dotenv');
 
+// 1. Muat konfigurasi .env dengan path absolut dari root project
+const envPath = path.resolve(__dirname, '.env');
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+} else {
+  dotenv.config();
+}
+
+const { pool } = require('./src/config/database');
 const DB_DIR = path.resolve(__dirname, 'database');
 
 function readSqlFile(fileName) {
@@ -24,9 +32,11 @@ function readSqlFile(fileName) {
 async function runMigration() {
   console.log('=======================================================');
   console.log('🚄 MEMULAI MIGRASI DATABASE FAREBOX DATA MANAGEMENT');
-  console.log(`   Host     : ${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}`);
-  console.log(`   Database : ${process.env.DB_NAME || 'hpr_portal'}`);
-  console.log(`   User     : ${process.env.DB_USER || 'postgres'}`);
+  console.log(`   Config File : ${fs.existsSync(envPath) ? envPath : 'Default / Environment variables'}`);
+  console.log(`   Host        : ${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}`);
+  console.log(`   Database    : ${process.env.DB_NAME || 'hpr_portal'}`);
+  console.log(`   User        : ${process.env.DB_USER || 'postgres'}`);
+  console.log(`   SSL         : ${process.env.DB_SSL === 'true' ? 'Enabled' : 'Disabled'}`);
   console.log('=======================================================\n');
 
   const client = await pool.connect();
@@ -34,28 +44,48 @@ async function runMigration() {
   try {
     // 1. Verifikasi Koneksi
     const resVer = await client.query('SELECT version(), current_database(), current_user;');
-    console.log(`[1/7] ✅ Terhubung ke PostgreSQL: ${resVer.rows[0].current_database} (User: ${resVer.rows[0].current_user})`);
+    console.log(`[1/9] ✅ Terhubung ke PostgreSQL: ${resVer.rows[0].current_database} (User: ${resVer.rows[0].current_user})`);
 
     // 2. Skrip 01: Tabel Master & Partisi hrts_sales_p
-    console.log('\n[2/7] ⏳ Menyiapkan tabel partisi penjualan (hrts_sales_p)...');
-    const sqlSales = readSqlFile('01_create_partitioned_sales.sql');
-    await client.query(sqlSales);
-    console.log('      ✅ Skema hrts_sales_p dan partisi bulanan 2023-2027 berhasil dibuat.');
+    const checkSales = await client.query(`
+      SELECT to_regclass('public.hrts_sales') AS sales_table,
+             to_regclass('public.hrts_sales_p') AS sales_p_table;
+    `);
+    const hasSales = Boolean(checkSales.rows[0].sales_table || checkSales.rows[0].sales_p_table);
+
+    if (!hasSales) {
+      console.log('\n[2/9] ⏳ Menyiapkan tabel partisi penjualan (hrts_sales_p)...');
+      const sqlSales = readSqlFile('01_create_partitioned_sales.sql');
+      await client.query(sqlSales);
+      console.log('      ✅ Skema hrts_sales_p dan partisi bulanan 2023-2027 berhasil dibuat.');
+    } else {
+      console.log('\n[2/9] ℹ️ Tabel partisi penjualan (hrts_sales) sudah ada, melewati pembuatan ulang skema.');
+    }
 
     // 3. Skrip 02: Tabel Master & Partisi hrts_refund_p
-    console.log('\n[3/7] ⏳ Menyiapkan tabel partisi refund (hrts_refund_p)...');
-    const sqlRefund = readSqlFile('02_create_partitioned_refund.sql');
-    await client.query(sqlRefund);
-    console.log('      ✅ Skema hrts_refund_p dan partisi bulanan 2023-2027 berhasil dibuat.');
+    const checkRefund = await client.query(`
+      SELECT to_regclass('public.hrts_refund') AS refund_table,
+             to_regclass('public.hrts_refund_p') AS refund_p_table;
+    `);
+    const hasRefund = Boolean(checkRefund.rows[0].refund_table || checkRefund.rows[0].refund_p_table);
+
+    if (!hasRefund) {
+      console.log('\n[3/9] ⏳ Menyiapkan tabel partisi refund (hrts_refund_p)...');
+      const sqlRefund = readSqlFile('02_create_partitioned_refund.sql');
+      await client.query(sqlRefund);
+      console.log('      ✅ Skema hrts_refund_p dan partisi bulanan 2023-2027 berhasil dibuat.');
+    } else {
+      console.log('\n[3/9] ℹ️ Tabel partisi refund (hrts_refund) sudah ada, melewati pembuatan ulang skema.');
+    }
 
     // 4. Skrip 03: Data Mart Summary Harian
-    console.log('\n[4/7] ⏳ Menyiapkan tabel data mart summary (hrts_daily_sales_summary & hrts_daily_refund_summary)...');
+    console.log('\n[4/9] ⏳ Menyiapkan tabel data mart summary (hrts_daily_sales_summary & hrts_daily_refund_summary)...');
     const sqlSummary = readSqlFile('03_create_summary_tables.sql');
     await client.query(sqlSummary);
     console.log('      ✅ Tabel data mart harian berhasil disiapkan.');
 
     // 5. Penyelarasan Nama Tabel (Table Switching)
-    console.log('\n[5/7] ⏳ Menyelaraskan nama tabel utama (hrts_sales & hrts_refund)...');
+    console.log('\n[5/9] ⏳ Menyelaraskan nama tabel utama (hrts_sales & hrts_refund)...');
     
     // Cek apakah tabel hrts_sales_p masih ada (perlu di-rename ke hrts_sales)
     const checkP = await client.query(`
@@ -102,9 +132,8 @@ async function runMigration() {
     await client.query('ALTER TABLE IF EXISTS hrts_refund ADD COLUMN IF NOT EXISTS add_refund_status_ticket VARCHAR(100);');
     console.log('      ✅ Verifikasi kolom status tiket (add_sales_status_ticket & add_refund_status_ticket) selesai.');
 
-
     // 6. Skrip 07 & 08: Views Kompatibilitas, Okupansi & Stored Procedure
-    console.log('\n[6/7] ⏳ Menyiapkan view kompatibilitas, skema okupansi, dan stored procedure agregasi...');
+    console.log('\n[6/9] ⏳ Menyiapkan view kompatibilitas, skema okupansi, dan stored procedure agregasi...');
     const sqlCompat = readSqlFile('07_create_views_compatibility.sql');
     await client.query(sqlCompat);
 
@@ -113,7 +142,7 @@ async function runMigration() {
     console.log('      ✅ View kompatibilitas, modul okupansi kereta, dan stored procedure sp_refresh_daily_summary berhasil dipasang.');
 
     // 7. Skrip 09: Pengguna RBAC & Audit Upload History
-    console.log('\n[7/8] ⏳ Menyiapkan tabel pengguna RBAC dan riwayat audit upload...');
+    console.log('\n[7/9] ⏳ Menyiapkan tabel pengguna RBAC dan riwayat audit upload...');
     const sqlUsers = readSqlFile('09_create_users_table.sql');
     await client.query(sqlUsers);
     console.log('      ✅ Tabel users, akun default (admin & operator), dan tabel upload_history berhasil disiapkan.');

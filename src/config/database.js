@@ -1,3 +1,15 @@
+const fs = require('fs');
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Prioritaskan file .env di root project (atau current working directory)
+const rootEnvPath = path.resolve(__dirname, '../../.env');
+if (fs.existsSync(rootEnvPath)) {
+  dotenv.config({ path: rootEnvPath });
+} else {
+  dotenv.config();
+}
+
 const { Pool } = require('pg');
 
 /**
@@ -9,7 +21,7 @@ const poolConfig = {
   port: parseInt(process.env.DB_PORT || '5432', 10),
   database: process.env.DB_NAME || 'hpr_portal',
   user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'Sukma@123098!@',
+  password: process.env.DB_PASSWORD,
   max: parseInt(process.env.DB_MAX_CONNECTIONS || '20', 10),
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
@@ -30,3 +42,4 @@ module.exports = {
   query: (text, params) => pool.query(text, params),
   getClient: () => pool.connect(),
 };
+
