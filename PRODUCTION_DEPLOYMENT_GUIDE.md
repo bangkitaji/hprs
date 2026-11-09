@@ -329,6 +329,40 @@ Inisialisasi tabel pengguna `users` dan pembuatan akun default (Administrator & 
 
 ---
 
+### Langkah 10: Pembuatan Tabel Middleware & Payment Gateway (Enhancement v1.1)
+
+Inisialisasi tabel transaksi perantara middleware dan settlement payment gateway (Xendit, Finnet, Doku QR, Doku All):
+
+- **Di DBeaver / pgAdmin:** Buka file [`10_create_middleware_and_pg_tables.sql`](database/10_create_middleware_and_pg_tables.sql) ➔ Klik **Execute Script (Alt+X)**.
+- **Via Terminal / psql:**
+  ```powershell
+  & psql -U <user> -h <host> -d hpr_portal -f "./database/10_create_middleware_and_pg_tables.sql"
+  ```
+  _Tabel yang terbentuk:_
+  - `middleware_transactions`: Menampung log transaksi file `.txt` (pemisah `||`) dari sistem switching/middleware.
+  - `pg_xendit_settlements`: Transaksi settlement & disbursement dari Xendit (`.csv`).
+  - `pg_finnet_settlements`: Transaksi settlement Finpay & CC/Debit dari Finnet (`.xlsx`).
+  - `pg_doku_qr_settlements`: Transaksi QRIS settlement dari Doku QR (`.xlsx`).
+  - `pg_doku_all_settlements`: Transaksi seluruh kanal dari Doku All (`.csv`).
+  - `upload_history`: Ditambahkan kolom `source_type` dan `provider` untuk audit log multi-sumber data.
+
+---
+
+### Langkah 11: Pembuatan Tabel Modul Rekonsiliasi Otomatis (Three-Way Reconciliation)
+
+Inisialisasi tabel audit batch dan rincian transaksi pencocokan 3-arah:
+
+- **Di DBeaver / pgAdmin:** Buka file [`11_create_reconciliation_tables.sql`](database/11_create_reconciliation_tables.sql) ➔ Klik **Execute Script (Alt+X)**.
+- **Via Terminal / psql:**
+  ```powershell
+  & psql -U <user> -h <host> -d hpr_portal -f "./database/11_create_reconciliation_tables.sql"
+  ```
+  _Tabel yang terbentuk:_
+  - `reconciliation_batches`: Metadata eksekusi rekonsiliasi, ID batch unik `REC-YYYYMMDD-XXXX`, jumlah transaksi, metrik status, dan durasi eksekusi.
+  - `reconciliation_items`: Granularitas per transaksi yang membandingkan Layer 1 (HRTS), Layer 2 (MW), dan Layer 3 (PG), nilai nominal tarif vs dana cair, amount variance, serta formulir resolusi dispute.
+
+---
+
 ## 4. INTEGRASI BATCH HARIAN (DAILY INGESTION SOP)
 
 Untuk menjamin injeksi harian ~20.000 data berjalan cepat dan tidak terjadi duplikasi:
