@@ -1704,6 +1704,8 @@ body {
    Source Category Navigation & Payment Gateway Provider Selector
    ===================================================================================== */
 .source-category-nav {
+  position: relative;
+  z-index: 10;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
@@ -1711,6 +1713,8 @@ body {
 }
 
 .category-btn {
+  position: relative;
+  z-index: 10;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -1720,8 +1724,13 @@ body {
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   cursor: pointer;
+  user-select: none;
   transition: all 0.25s ease;
   text-align: left;
+}
+
+.category-btn * {
+  pointer-events: none;
 }
 
 .category-btn:hover {
@@ -1736,15 +1745,35 @@ body {
   transition: all 0.25s ease;
 }
 
-.category-btn.active {
-  background: rgba(230, 0, 18, 0.08);
+/* Category Active Distinct Themes */
+#cat-btn-hrts.active {
+  background: rgba(230, 0, 18, 0.12);
   border-color: var(--crimson);
-  color: var(--text-primary);
-  box-shadow: 0 0 15px rgba(230, 0, 18, 0.2);
+  color: #fff;
+  box-shadow: 0 0 16px rgba(230, 0, 18, 0.25);
+}
+#cat-btn-hrts.active i {
+  color: var(--crimson);
 }
 
-.category-btn.active i {
-  color: var(--crimson);
+#cat-btn-middleware.active {
+  background: rgba(6, 182, 212, 0.12);
+  border-color: #06B6D4;
+  color: #fff;
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.25);
+}
+#cat-btn-middleware.active i {
+  color: #06B6D4;
+}
+
+#cat-btn-pg.active {
+  background: rgba(168, 85, 247, 0.12);
+  border-color: #A855F7;
+  color: #fff;
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.25);
+}
+#cat-btn-pg.active i {
+  color: #A855F7;
 }
 
 .category-btn-title {
@@ -1763,6 +1792,8 @@ body {
 
 /* PG Provider Chips Bar */
 .pg-provider-bar {
+  position: relative;
+  z-index: 10;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1789,6 +1820,8 @@ body {
 }
 
 .pg-chip {
+  position: relative;
+  z-index: 10;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1800,7 +1833,12 @@ body {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  user-select: none;
   transition: all 0.2s ease;
+}
+
+.pg-chip * {
+  pointer-events: none;
 }
 
 .pg-chip:hover {
@@ -1809,10 +1847,10 @@ body {
 }
 
 .pg-chip.active {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: var(--cyan);
+  background: rgba(168, 85, 247, 0.18);
+  border-color: #A855F7;
   color: #fff;
-  box-shadow: 0 0 10px rgba(6, 182, 212, 0.25);
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.25);
 }
 
 .provider-dot {

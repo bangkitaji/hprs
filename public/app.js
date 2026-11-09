@@ -25,25 +25,29 @@ function setUploadCategory(cat) {
   const cardDesc = document.getElementById('upload-card-desc');
   const cardBadge = document.getElementById('upload-card-badge');
   const dropTitle = document.getElementById('dropzone-title');
+  const fileInput = document.getElementById('file-input');
 
   if (cat === 'payment_gateway') {
     if (pgBar) pgBar.classList.remove('hidden');
     if (cardTitle) cardTitle.innerHTML = '<i class="fa-solid fa-credit-card card-icon"></i> Upload Payment Gateway Settlement Files';
     if (cardDesc) cardDesc.innerHTML = 'Supports settlement reports from <strong>Xendit (.csv), Finnet (.xlsx), Doku All (.csv), and Doku QR (.xlsx)</strong>.';
     if (cardBadge) cardBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Multi-PG Settlement Reconciliation';
-    if (dropTitle) dropTitle.innerText = 'Drag & drop Payment Gateway files here';
+    if (dropTitle) dropTitle.innerText = 'Drag & drop Payment Gateway (.csv / .xlsx) files here';
+    if (fileInput) fileInput.accept = '.csv, .xlsx, .xls';
   } else if (cat === 'middleware') {
     if (pgBar) pgBar.classList.add('hidden');
     if (cardTitle) cardTitle.innerHTML = '<i class="fa-solid fa-server card-icon"></i> Upload Middleware Transaction Logs';
     if (cardDesc) cardDesc.innerHTML = 'Supports middleware exports (<strong>.txt with "||" delimiter</strong>, .csv, or .xlsx). Auto-detects header presence.';
     if (cardBadge) cardBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Double Pipe (||) Log Ingestion';
     if (dropTitle) dropTitle.innerText = 'Drag & drop Middleware (.txt / .csv) files here';
+    if (fileInput) fileInput.accept = '.txt, .csv, .xlsx, .xls';
   } else {
     if (pgBar) pgBar.classList.add('hidden');
     if (cardTitle) cardTitle.innerHTML = '<i class="fa-solid fa-file-excel card-icon"></i> Upload Ticketing & Occupancy Excel Files';
     if (cardDesc) cardDesc.innerHTML = 'Supports native ticketing system export formats (.xlsx / .xls). <strong>Auto-detects Sales, Refund, & Occupancy report structures.</strong>';
     if (cardBadge) cardBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Auto-Detect Sales, Refund & Occupancy';
     if (dropTitle) dropTitle.innerText = 'Drag & drop HRTS Excel files here';
+    if (fileInput) fileInput.accept = '.xlsx, .xls';
   }
   resetUpload();
 }
@@ -61,9 +65,61 @@ function filterUploadHistory(sourceValue) {
   loadUploadHistory();
 }
 
+/**
+ * Programmatic event listeners for category buttons & PG provider chips
+ */
+function initCategoryButtons() {
+  const catHrts = document.getElementById('cat-btn-hrts');
+  const catMw = document.getElementById('cat-btn-middleware');
+  const catPg = document.getElementById('cat-btn-pg');
+
+  if (catHrts) {
+    catHrts.addEventListener('click', (e) => {
+      e.preventDefault();
+      setUploadCategory('hrts');
+    });
+  }
+  if (catMw) {
+    catMw.addEventListener('click', (e) => {
+      e.preventDefault();
+      setUploadCategory('middleware');
+    });
+  }
+  if (catPg) {
+    catPg.addEventListener('click', (e) => {
+      e.preventDefault();
+      setUploadCategory('payment_gateway');
+    });
+  }
+
+  // PG Chips listeners
+  const pgChips = [
+    { id: 'pg-chip-auto', prov: 'auto' },
+    { id: 'pg-chip-xendit', prov: 'xendit' },
+    { id: 'pg-chip-finnet', prov: 'finnet' },
+    { id: 'pg-chip-doku_all', prov: 'doku_all' },
+    { id: 'pg-chip-doku_qr', prov: 'doku_qr' },
+  ];
+  pgChips.forEach(({ id, prov }) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        setPgProvider(prov);
+      });
+    }
+  });
+}
+
+// Expose navigation & upload controls globally on window
+window.setUploadCategory = setUploadCategory;
+window.setPgProvider = setPgProvider;
+window.filterUploadHistory = filterUploadHistory;
+
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
   initAuth();
+  initCategoryButtons();
   setupDropzone();
   initDateFilters();
   initReconDateFilters();
@@ -272,6 +328,7 @@ function applyUserSession(user) {
 
   const tabUploadBtn = document.getElementById('tab-upload-btn');
   const tabDashboardBtn = document.getElementById('tab-dashboard-btn');
+  const tabReconciliationBtn = document.getElementById('tab-reconciliation-btn');
   const tabHistoryBtn = document.getElementById('tab-history-btn');
   const tabUsersBtn = document.getElementById('tab-users-btn');
 
@@ -283,24 +340,26 @@ function applyUserSession(user) {
     displayRole.className = 'role-pill role-admin';
 
     // Administrator has full access to all tabs
-    tabDashboardBtn.style.display = 'inline-flex';
-    tabHistoryBtn.style.display = 'inline-flex';
-    tabUsersBtn.style.display = 'inline-flex';
-    tabUploadBtn.style.display = 'inline-flex';
+    if (tabDashboardBtn) tabDashboardBtn.style.display = 'inline-flex';
+    if (tabReconciliationBtn) tabReconciliationBtn.style.display = 'inline-flex';
+    if (tabHistoryBtn) tabHistoryBtn.style.display = 'inline-flex';
+    if (tabUsersBtn) tabUsersBtn.style.display = 'inline-flex';
+    if (tabUploadBtn) tabUploadBtn.style.display = 'inline-flex';
   } else {
     // Standard user can only upload data & view upload history
     displayRole.innerText = 'Standard User';
     displayRole.className = 'role-pill role-user';
 
-    tabDashboardBtn.style.display = 'none';
-    tabUsersBtn.style.display = 'none';
-    tabUploadBtn.style.display = 'inline-flex';
-    tabHistoryBtn.style.display = 'inline-flex';
+    if (tabDashboardBtn) tabDashboardBtn.style.display = 'none';
+    if (tabReconciliationBtn) tabReconciliationBtn.style.display = 'none';
+    if (tabUsersBtn) tabUsersBtn.style.display = 'none';
+    if (tabUploadBtn) tabUploadBtn.style.display = 'inline-flex';
+    if (tabHistoryBtn) tabHistoryBtn.style.display = 'inline-flex';
   }
 
   // Restore previously active tab on page refresh
   const savedTab = sessionStorage.getItem('hpr_active_tab') || 'upload';
-  if (user.role === 'user' && (savedTab === 'dashboard' || savedTab === 'users')) {
+  if (user.role === 'user' && (savedTab === 'dashboard' || savedTab === 'users' || savedTab === 'reconciliation')) {
     switchTab('upload');
   } else {
     switchTab(savedTab);
