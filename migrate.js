@@ -119,10 +119,16 @@ async function runMigration() {
     console.log('      ✅ Tabel users, akun default (admin & operator), dan tabel upload_history berhasil disiapkan.');
 
     // 8. Skrip 10: Middleware & Payment Gateway Tables
-    console.log('\n[8/8] ⏳ Menyiapkan tabel Middleware & Payment Gateway (Xendit, Finnet, Doku)...');
+    console.log('\n[8/9] ⏳ Menyiapkan tabel Middleware & Payment Gateway (Xendit, Finnet, Doku)...');
     const sqlPg = readSqlFile('10_create_middleware_and_pg_tables.sql');
     await client.query(sqlPg);
     console.log('      ✅ Tabel middleware_transactions, pg_xendit_settlements, pg_finnet_settlements, pg_doku_qr_settlements, pg_doku_all_settlements berhasil disiapkan.');
+
+    // 9. Skrip 11: Modul Rekonsiliasi Otomatis (reconciliation_batches & reconciliation_items)
+    console.log('\n[9/9] ⏳ Menyiapkan tabel Rekonsiliasi Otomatis (reconciliation_batches & reconciliation_items)...');
+    const sqlRecon = readSqlFile('11_create_reconciliation_tables.sql');
+    await client.query(sqlRecon);
+    console.log('      ✅ Tabel reconciliation_batches dan reconciliation_items berhasil disiapkan.');
 
     console.log('\n=======================================================');
     console.log('🎉 MIGRASI DATABASE BERHASIL 100%!');
