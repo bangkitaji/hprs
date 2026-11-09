@@ -3,11 +3,11 @@
  * Application Entry Point & Server Bootstrap
  */
 
-const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+const { loadEnvironmentConfig } = require('./src/config/envLoader');
+loadEnvironmentConfig();
 
 const app = require('./src/app');
-const { pool } = require('./src/config/database');
+const { pool, dbConfig } = require('./src/config/database');
 
 const PORT = process.env.PORT || 3000;
 
@@ -16,6 +16,7 @@ const server = app.listen(PORT, () => {
   console.log('=======================================================');
   console.log('🚄 FAREBOX DATA MANAGEMENT');
   console.log(`   Running on : http://localhost:${PORT}`);
+  console.log(`   DB Host    : ${dbConfig.host}:${dbConfig.port} (${dbConfig.database})`);
   console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log('=======================================================');
 });

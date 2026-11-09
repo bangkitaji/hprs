@@ -8,15 +8,10 @@
 
 const fs = require('fs');
 const path = require('path');
-const dotenv = require('dotenv');
+const { loadEnvironmentConfig } = require('./src/config/envLoader');
 
-// 1. Muat konfigurasi .env dengan path absolut dari root project
-const envPath = path.resolve(__dirname, '.env');
-if (fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath });
-} else {
-  dotenv.config();
-}
+// 1. Muat konfigurasi .env dengan engine universal
+const { loadedPath, parsedKeys, dbConfig } = loadEnvironmentConfig();
 
 const { pool } = require('./src/config/database');
 const DB_DIR = path.resolve(__dirname, 'database');
@@ -30,16 +25,45 @@ function readSqlFile(fileName) {
 }
 
 async function runMigration() {
+  const detectedKeys = Object.keys(parsedKeys);
+  const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(dbConfig.host.toLowerCase());
+
   console.log('=======================================================');
   console.log('🚄 MEMULAI MIGRASI DATABASE FAREBOX DATA MANAGEMENT');
-  console.log(`   Config File : ${fs.existsSync(envPath) ? envPath : 'Default / Environment variables'}`);
-  console.log(`   Host        : ${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}`);
-  console.log(`   Database    : ${process.env.DB_NAME || 'hpr_portal'}`);
-  console.log(`   User        : ${process.env.DB_USER || 'postgres'}`);
-  console.log(`   SSL         : ${process.env.DB_SSL === 'true' ? 'Enabled' : 'Disabled'}`);
+  console.log(`   Config File : ${loadedPath ? loadedPath : '⚠️ TIDAK DITEMUKAN (Menggunakan default)'}`);
+  console.log(`   Detected Env: ${detectedKeys.length > 0 ? detectedKeys.join(', ') : 'None'}`);
+  console.log(`   Target Host : ${dbConfig.host}:${dbConfig.port}`);
+  console.log(`   Database    : ${dbConfig.database}`);
+  console.log(`   DB User     : ${dbConfig.user}`);
+  console.log(`   SSL Mode    : ${dbConfig.ssl ? 'Enabled' : 'Disabled'}`);
+  if (isLocalhost) {
+    console.log(`   ℹ️ Catatan   : Target saat ini adalah LOCALHOST.`);
+    console.log(`                 Jika DB Anda di server lain, pastikan 'DB_HOST=<IP_DB>'`);
+    console.log(`                 tertera di file .env atau jalankan: DB_HOST=<IP> node migrate.js`);
+  }
   console.log('=======================================================\n');
 
-  const client = await pool.connect();
+  let client;
+  try {
+    client = await pool.connect();
+  } catch (connErr) {
+    console.error('❌ GAGAL MEMBUAT KONEKSI KE DATABASE POSTGRESQL:');
+    console.error(`   Target host: ${dbConfig.host}:${dbConfig.port}`);
+    console.error(`   Pesan Error: ${connErr.message}`);
+    console.error('\n🔍 PETUNJUK TROUBLESHOOTING:');
+    if (isLocalhost) {
+      console.error('   1. Anda mengarahkan koneksi ke LOCALHOST (127.0.0.1).');
+      console.error('      Jika database PostgreSQL Anda berada di server/VM lain, ubah DB_HOST di .env:');
+      console.error('      Contoh: DB_HOST=10.20.x.x');
+      console.error('      Atau jalankan langsung:');
+      console.error(`      DB_HOST=<IP_SERVER_DB> DB_PASSWORD=<PASSWORD> node migrate.js\n`);
+    } else {
+      console.error(`   1. Pastikan server ${dbConfig.host} dapat di-ping dari server ini.`);
+      console.error(`   2. Periksa firewall/Security Group agar port ${dbConfig.port} dibuka.`);
+      console.error(`   3. Periksa file pg_hba.conf dan listen_addresses = '*' di server database.`);
+    }
+    process.exit(1);
+  }
 
   try {
     // 1. Verifikasi Koneksi
@@ -172,7 +196,7 @@ async function runMigration() {
     if (err.hint) console.error(`Hint  : ${err.hint}`);
     process.exit(1);
   } finally {
-    client.release();
+    if (client) client.release();
     await pool.end();
   }
 }

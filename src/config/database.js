@@ -1,33 +1,25 @@
-const fs = require('fs');
-const path = require('path');
-const dotenv = require('dotenv');
-
-// Prioritaskan file .env di root project (atau current working directory)
-const rootEnvPath = path.resolve(__dirname, '../../.env');
-if (fs.existsSync(rootEnvPath)) {
-  dotenv.config({ path: rootEnvPath });
-} else {
-  dotenv.config();
-}
-
 const { Pool } = require('pg');
+const { loadEnvironmentConfig } = require('./envLoader');
+
+// Muat variabel lingkungan secara andal
+const { dbConfig } = loadEnvironmentConfig();
 
 /**
  * Konfigurasi Connection Pool PostgreSQL
  * Nilai kredensial dimuat secara aman melalui Environment Variables (.env)
  */
 const poolConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  database: process.env.DB_NAME || 'hpr_portal',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD,
+  host: dbConfig.host,
+  port: dbConfig.port,
+  database: dbConfig.database,
+  user: dbConfig.user,
+  password: dbConfig.password,
   max: parseInt(process.env.DB_MAX_CONNECTIONS || '20', 10),
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 10000,
 };
 
-if (process.env.DB_SSL === 'true') {
+if (dbConfig.ssl) {
   poolConfig.ssl = { rejectUnauthorized: false };
 }
 
@@ -39,7 +31,7 @@ pool.on('error', (err) => {
 
 module.exports = {
   pool,
+  dbConfig,
   query: (text, params) => pool.query(text, params),
   getClient: () => pool.connect(),
 };
-
