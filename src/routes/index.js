@@ -7,6 +7,7 @@ const statsRoutes = require('./statsRoutes');
 const summaryRoutes = require('./summaryRoutes');
 const historyRoutes = require('./historyRoutes');
 const uploadRoutes = require('./uploadRoutes');
+const reconciliationRoutes = require('./reconciliationRoutes');
 const { authenticate, requireRole } = require('../middlewares/authMiddleware');
 
 // 1. Rute Publik Autentikasi (Login & Cek Sesi)
@@ -21,7 +22,10 @@ router.use('/users', userRoutes);
 // 4. Rute Data Mart Analytics (Khusus Administrator)
 router.use('/summary', authenticate, requireRole('administrator'), summaryRoutes);
 
-// 5. Rute Statistik KPI & Riwayat Upload (Memerlukan Login)
+// 5. Rute Modul Rekonsiliasi Otomatis (Three-Way Reconciliation Hub)
+router.use('/reconciliation', authenticate, reconciliationRoutes);
+
+// 6. Rute Statistik KPI & Riwayat Upload (Memerlukan Login)
 router.use('/stats', authenticate, statsRoutes);
 router.use('/history', authenticate, historyRoutes);
 

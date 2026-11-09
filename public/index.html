@@ -59,6 +59,10 @@
         <i class="fa-solid fa-chart-line"></i>
         <span>Live Data Mart</span>
       </button>
+      <button class="tab-btn" id="tab-reconciliation-btn" onclick="switchTab('reconciliation')">
+        <i class="fa-solid fa-code-compare"></i>
+        <span>Reconciliation Hub</span>
+      </button>
       <button class="tab-btn" id="tab-history-btn" onclick="switchTab('history')">
         <i class="fa-solid fa-clock-rotate-left"></i>
         <span>Upload History</span>
@@ -379,7 +383,203 @@
       </div>
     </main>
 
-    <!-- TAB 3: UPLOAD HISTORY -->
+    <!-- TAB 3: THREE-WAY RECONCILIATION HUB -->
+    <main id="tab-reconciliation" class="tab-content">
+      <!-- Header & Filter Bar -->
+      <div class="dashboard-header recon-header-bar">
+        <div>
+          <h2 class="card-title"><i class="fa-solid fa-code-compare card-icon"></i> Three-Way Reconciliation Hub</h2>
+          <p class="card-desc">Continuous automated matching between HRTS Ticketing Core, Middleware logs, and Payment Gateway settlements.</p>
+        </div>
+        <div class="recon-controls-group">
+          <div class="recon-batch-select-wrap">
+            <label for="recon-batch-select"><i class="fa-solid fa-layer-group"></i> Batch:</label>
+            <select id="recon-batch-select" class="filter-select" onchange="switchReconBatch(this.value)">
+              <option value="">Latest Completed Batch</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <input type="date" id="recon-start-date" class="date-input">
+            <span class="date-sep">to</span>
+            <input type="date" id="recon-end-date" class="date-input">
+            <select id="recon-provider-filter" class="filter-select">
+              <option value="ALL">All PG Providers</option>
+              <option value="xendit">Xendit</option>
+              <option value="finnet">Finnet</option>
+              <option value="doku_qr">Doku QR</option>
+              <option value="doku_all">Doku All</option>
+            </select>
+            <button class="btn btn-primary" id="btn-run-recon" onclick="triggerRunReconciliation()">
+              <i class="fa-solid fa-play"></i> Run 3-Way Match
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 1: Executive KPI Summary -->
+      <div class="kpi-grid recon-kpi-grid">
+        <div class="kpi-card" style="border-top: 3px solid #3B82F6;">
+          <div class="kpi-label">Total Transactions Reconciled</div>
+          <div class="kpi-value" id="recon-kpi-total">-</div>
+          <div class="kpi-trend" id="recon-batch-info"><i class="fa-solid fa-barcode"></i> Batch ID: -</div>
+        </div>
+        <div class="kpi-card" style="border-top: 3px solid #10B981;">
+          <div class="kpi-label">Fully Reconciled (Clean 100%)</div>
+          <div class="kpi-value" id="recon-kpi-clean" style="color: #10B981;">-</div>
+          <div class="kpi-trend positive"><i class="fa-solid fa-circle-check"></i> <span id="recon-kpi-clean-pct">0% Clean Rate</span></div>
+        </div>
+        <div class="kpi-card" style="border-top: 3px solid #F59E0B;">
+          <div class="kpi-label">Pending Settlements</div>
+          <div class="kpi-value" id="recon-kpi-pending" style="color: #F59E0B;">-</div>
+          <div class="kpi-trend"><i class="fa-solid fa-clock"></i> <span id="recon-kpi-pending-sub">Awaiting PG Transfer</span></div>
+        </div>
+        <div class="kpi-card" style="border-top: 3px solid #EF4444;">
+          <div class="kpi-label">Potential Revenue Leakage</div>
+          <div class="kpi-value" id="recon-kpi-unsettled" style="color: #EF4444;">-</div>
+          <div class="kpi-trend negative"><i class="fa-solid fa-triangle-exclamation"></i> <span id="recon-kpi-unsettled-sub">Ticket Sold, No PG Record</span></div>
+        </div>
+        <div class="kpi-card" style="border-top: 3px solid #EC4899;">
+          <div class="kpi-label">Customer Dispute Risk</div>
+          <div class="kpi-value" id="recon-kpi-orphan" style="color: #EC4899;">-</div>
+          <div class="kpi-trend"><i class="fa-solid fa-user-xmark"></i> <span id="recon-kpi-orphan-sub">PG Paid, No Ticket Issued</span></div>
+        </div>
+        <div class="kpi-card" style="border-top: 3px solid #8B5CF6;">
+          <div class="kpi-label">PG Fees & MDR Deducted</div>
+          <div class="kpi-value" id="recon-kpi-fee" style="color: #A78BFA;">-</div>
+          <div class="kpi-trend"><i class="fa-solid fa-receipt"></i> <span id="recon-kpi-fee-sub">Effective MDR: 0%</span></div>
+        </div>
+      </div>
+
+      <!-- Section 2: Payment Gateway Settlement & Fee Performance Breakdown -->
+      <div class="dash-card" style="margin-bottom: 24px;">
+        <div class="card-header" style="margin-bottom: 12px; padding: 0;">
+          <div>
+            <h3 class="dash-card-title"><i class="fa-solid fa-chart-pie"></i> Payment Gateway Settlement & Fee Intelligence</h3>
+            <p class="card-desc" style="font-size: 13px;">Performance comparison of gross inflow, deducted processing fees & VAT, net settled funds, and effective MDR.</p>
+          </div>
+        </div>
+        <div class="dash-table-wrapper">
+          <table class="dash-table" id="recon-provider-table">
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Total Trx</th>
+                <th>Clean Match</th>
+                <th>Pending</th>
+                <th>Disputes</th>
+                <th>Gross Volume</th>
+                <th>Fee & VAT Deducted</th>
+                <th>Net Settled Amount</th>
+                <th>Effective Fee %</th>
+              </tr>
+            </thead>
+            <tbody id="recon-provider-tbody">
+              <tr><td colspan="9" class="empty-state">Loading settlement analytics...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section 3: Actionable Dispute & Transaction Explorer -->
+      <div class="history-card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title"><i class="fa-solid fa-list-check card-icon"></i> Transaction & Dispute Explorer</h3>
+            <p class="card-desc">Detailed item-level matching status, 3-way discrepancy analysis, and dispute resolution audit.</p>
+          </div>
+          <div class="recon-explorer-actions">
+            <button class="btn btn-outline btn-sm" onclick="exportReconciliationCsv()">
+              <i class="fa-solid fa-file-csv"></i> Export CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- Explorer Filters -->
+        <div class="recon-filters-bar">
+          <div class="filter-item">
+            <label><i class="fa-solid fa-filter"></i> Status:</label>
+            <select id="recon-filter-status" class="filter-select" onchange="filterReconItems()">
+              <option value="">All Statuses</option>
+              <option value="MATCH_CLEAN">Fully Reconciled (Clean)</option>
+              <option value="MATCH_PENDING">Pending Settlement</option>
+              <option value="DISPUTE_UNSETTLED">Ticket Sold, No PG Settlement</option>
+              <option value="DISPUTE_ORPHAN_PAID">PG Paid, No Ticket (Dispute)</option>
+              <option value="DISPUTE_AMOUNT_MISMATCH">Amount Mismatch</option>
+              <option value="MW_ORPHAN">Middleware Orphan</option>
+            </select>
+          </div>
+          <div class="filter-item">
+            <label><i class="fa-solid fa-building-columns"></i> Provider:</label>
+            <select id="recon-filter-provider" class="filter-select" onchange="filterReconItems()">
+              <option value="ALL">All Providers</option>
+              <option value="Xendit">Xendit</option>
+              <option value="Finnet">Finnet</option>
+              <option value="Doku QR">Doku QR</option>
+              <option value="Doku All">Doku All</option>
+              <option value="Middleware Only">Middleware</option>
+            </select>
+          </div>
+          <div class="filter-item">
+            <label><i class="fa-solid fa-shield-check"></i> Resolution:</label>
+            <select id="recon-filter-resolution" class="filter-select" onchange="filterReconItems()">
+              <option value="">All Resolutions</option>
+              <option value="UNRESOLVED">Unresolved Only</option>
+              <option value="RESOLVED">Resolved</option>
+              <option value="IGNORED">Ignored</option>
+            </select>
+          </div>
+          <div class="filter-item search-item">
+            <div class="search-box">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="recon-search-input" class="search-input" placeholder="Search Reference, Order ID, Trx ID..." onkeyup="handleReconSearch(event)">
+            </div>
+          </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="history-table-wrapper">
+          <table class="history-table" id="recon-items-table">
+            <thead>
+              <tr>
+                <th>Reference ID (Golden Key)</th>
+                <th>Date</th>
+                <th>Provider & Channel</th>
+                <th>3-Way Presence</th>
+                <th>HRTS Fare</th>
+                <th>PG Net Settled</th>
+                <th>Variance</th>
+                <th>Status</th>
+                <th>Resolution</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="recon-items-tbody">
+              <tr><td colspan="10" class="empty-state">Loading reconciliation records...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination Bar -->
+        <div class="pagination-bar" id="recon-pagination-bar">
+          <div class="pagination-info-group">
+            <span class="pagination-count" id="recon-pagination-info">Showing 0–0 of 0 records</span>
+            <div class="pagination-size">
+              <label for="recon-page-size">Show:</label>
+              <select id="recon-page-size" class="pagination-select" onchange="changeReconPageSize(this.value)">
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+              </select>
+              <span>rows per page</span>
+            </div>
+          </div>
+          <div class="pagination-nav" id="recon-pagination-controls"></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- TAB 4: UPLOAD HISTORY -->
     <main id="tab-history" class="tab-content">
       <div class="history-card">
         <div class="card-header">
@@ -674,6 +874,157 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL 3-WAY TRANSACTION INSPECTOR & DISPUTE RESOLVER -->
+  <div id="recon-detail-modal" class="modal-overlay hidden" onclick="handleModalOverlayClick(event, 'recon-detail-modal')">
+    <div class="modal-card modal-card-lg" style="max-width: 900px; width: 95%;">
+      <div class="modal-header">
+        <div class="modal-header-icon" style="background: rgba(6, 182, 212, 0.15); color: #06B6D4;">
+          <i class="fa-solid fa-code-compare"></i>
+        </div>
+        <div class="modal-title-wrap">
+          <h2 class="modal-title">Three-Way Transaction Inspector</h2>
+          <p class="modal-subtitle">Golden Reference: <strong id="modal-recon-ref" style="color: #60A5FA; font-family: var(--font-mono);">-</strong></p>
+        </div>
+        <button type="button" class="btn-close-modal" onclick="closeReconDetailModal()" title="Close" aria-label="Close">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="recon-modal-body" style="padding: 20px 24px;">
+        <!-- Status & Variance Summary Banner -->
+        <div class="recon-banner" id="modal-recon-banner">
+          <div class="recon-banner-status">
+            <span class="status-badge" id="modal-recon-badge">-</span>
+            <span class="recon-banner-desc" id="modal-recon-desc" style="color: var(--text-secondary); font-size: 13px; margin-left: 10px;">-</span>
+          </div>
+          <div class="recon-banner-variance">
+            <span class="variance-label" style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Amount Variance:</span>
+            <span class="variance-val" id="modal-recon-variance" style="font-family: var(--font-mono); font-size: 18px; font-weight: 700; color: #fff;">Rp 0</span>
+          </div>
+        </div>
+
+        <!-- 3-Way Side-by-Side Comparison Grid -->
+        <div class="recon-columns-grid">
+          <!-- Layer 1: HRTS Ticketing Core -->
+          <div class="recon-layer-card" id="modal-layer-hrts">
+            <div class="layer-header">
+              <span class="layer-title"><i class="fa-solid fa-ticket"></i> HRTS Ticketing Core</span>
+              <span class="layer-badge" id="modal-hrts-present-badge">Present</span>
+            </div>
+            <div class="layer-fields">
+              <div class="layer-field">
+                <span class="lf-label">Order No:</span>
+                <span class="lf-val" id="modal-hrts-order">-</span>
+              </div>
+              <div class="layer-field">
+                <span class="lf-label">Tickets Count:</span>
+                <span class="lf-val" id="modal-hrts-tickets">-</span>
+              </div>
+              <div class="layer-field">
+                <span class="lf-label">Station:</span>
+                <span class="lf-val" id="modal-hrts-station">-</span>
+              </div>
+              <div class="layer-field">
+                <span class="lf-label">Purchase Time:</span>
+                <span class="lf-val" id="modal-hrts-time">-</span>
+              </div>
+              <div class="layer-field total-field">
+                <span class="lf-label">Total Fare Amount:</span>
+                <span class="lf-val highlight-val" id="modal-hrts-fare" style="color: #FF4D5E;">Rp 0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Layer 2: Middleware Log -->
+          <div class="recon-layer-card" id="modal-layer-mw">
+            <div class="layer-header">
+              <span class="layer-title"><i class="fa-solid fa-server"></i> Middleware Log</span>
+              <span class="layer-badge" id="modal-mw-present-badge">Present</span>
+            </div>
+            <div class="layer-fields">
+              <div class="layer-field">
+                <span class="lf-label">MW Serial No:</span>
+                <span class="lf-val" id="modal-mw-order">-</span>
+              </div>
+              <div class="layer-field">
+                <span class="lf-label">Channel:</span>
+                <span class="lf-val" id="modal-mw-channel">-</span>
+              </div>
+              <div class="layer-field">
+                <span class="lf-label">Timestamp:</span>
+                <span class="lf-val" id="modal-mw-time">-</span>
+              </div>
+              <div class="layer-field">
+                <span class="lf-label">Processing Fee + VAT:</span>
+                <span class="lf-val" id="modal-mw-fee">Rp 0</span>
+              </div>
+              <div class="layer-field total-field">
+                <span class="lf-label">MW Transacted:</span>
+                <span class="lf-val highlight-val" id="modal-mw-amount" style="color: #06B6D4;">Rp 0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Layer 3: Payment Gateway Settlement -->
+          <div class="recon-layer-card" id="modal-layer-pg">
+            <div class="layer-header">
+              <span class="layer-title"><i class="fa-solid fa-credit-card"></i> Payment Gateway</span>
+              <span class="layer-badge" id="modal-pg-present-badge">Present</span>
+            </div>
+            <div class="layer-fields">
+              <div class="layer-field">
+                <span class="lf-label">Provider & Channel:</span>
+                <span class="lf-val" id="modal-pg-provider">-</span>
+              </div>
+              <div class="layer-field">
+                <span class="lf-label">PG Trx ID:</span>
+                <span class="lf-val" id="modal-pg-trx">-</span>
+              </div>
+              <div class="layer-field">
+                <span class="lf-label">Settlement Status:</span>
+                <span class="lf-val" id="modal-pg-status">-</span>
+              </div>
+              <div class="layer-field">
+                <span class="lf-label">PG Fee & VAT:</span>
+                <span class="lf-val" id="modal-pg-fee">Rp 0</span>
+              </div>
+              <div class="layer-field total-field">
+                <span class="lf-label">Net Settled Cash:</span>
+                <span class="lf-val highlight-val" id="modal-pg-net" style="color: #10B981;">Rp 0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dispute Resolution Form -->
+        <div class="recon-resolution-panel">
+          <h4 class="resolution-title"><i class="fa-solid fa-gavel"></i> Dispute Resolution & Audit Action</h4>
+          <input type="hidden" id="modal-recon-item-id" value="">
+          <div class="form-row" style="margin-bottom: 14px; gap: 16px;">
+            <div class="form-group" style="flex: 1;">
+              <label for="modal-resolution-status"><i class="fa-solid fa-shield-check"></i> Resolution Status</label>
+              <select id="modal-resolution-status" class="form-control">
+                <option value="UNRESOLVED">UNRESOLVED</option>
+                <option value="RESOLVED">RESOLVED (Action Taken)</option>
+                <option value="IGNORED">IGNORED (False Alarm / Discarded)</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex: 2;">
+              <label for="modal-resolution-notes"><i class="fa-solid fa-comment-dots"></i> Resolution Notes / Audit Reference</label>
+              <input type="text" id="modal-resolution-notes" class="form-control" placeholder="e.g. Refund issued manually via CS Ticket #8812, verified by Bank Mandiri">
+            </div>
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="closeReconDetailModal()">Close</button>
+            <button type="button" class="btn btn-primary" onclick="submitItemResolution()">
+              <i class="fa-solid fa-floppy-disk"></i> Save Resolution
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 

@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initAuth();
   setupDropzone();
   initDateFilters();
+  initReconDateFilters();
 });
 
 // =====================================================================================
@@ -347,7 +348,7 @@ async function authFetch(url, options = {}) {
 
 function switchTab(tabId) {
   if (currentUser && currentUser.role === 'user') {
-    if (tabId === 'dashboard' || tabId === 'users') {
+    if (tabId === 'dashboard' || tabId === 'users' || tabId === 'reconciliation') {
       alert('Access Restricted: Your account role is only authorized to upload data.');
       return;
     }
@@ -365,6 +366,8 @@ function switchTab(tabId) {
 
   if (tabId === 'dashboard') {
     loadDashboardSummary();
+  } else if (tabId === 'reconciliation') {
+    loadReconciliationSummary();
   } else if (tabId === 'history') {
     loadUploadHistory();
   } else if (tabId === 'users') {
@@ -1482,3 +1485,491 @@ async function handleAdminResetPassword(e) {
     submitBtn.innerHTML = '<i class="fa-solid fa-user-check"></i> Update Password';
   }
 }
+
+// =====================================================================================
+// 10. THREE-WAY RECONCILIATION HUB & SETTLEMENT ANALYTICS
+// =====================================================================================
+
+let currentReconBatchId = null;
+let currentReconPage = 1;
+let currentReconPageSize = 25;
+let reconSearchDebounceTimer = null;
+
+function initReconDateFilters() {
+  const today = new Date();
+  const startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+
+  const startInput = document.getElementById('recon-start-date');
+  const endInput = document.getElementById('recon-end-date');
+
+  const formatLocal = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  if (startInput && endInput) {
+    startInput.value = formatLocal(startDate);
+    endInput.value = formatLocal(today);
+  }
+}
+
+async function triggerRunReconciliation() {
+  const startDate = document.getElementById('recon-start-date').value;
+  const endDate = document.getElementById('recon-end-date').value;
+  const providerFilter = document.getElementById('recon-provider-filter').value;
+  const btn = document.getElementById('btn-run-recon');
+
+  if (!startDate || !endDate) {
+    alert('Please select both start and end dates.');
+    return;
+  }
+
+  const origHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Running Matching Engine...';
+
+  try {
+    const res = await authFetch('/api/reconciliation/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ startDate, endDate, providerFilter }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to execute reconciliation.');
+    }
+
+    alert(`Reconciliation Completed!\nBatch: ${data.data.batchNo}\nTotal: ${data.data.totalTransactions.toLocaleString('en-US')} records\nDuration: ${(data.data.durationMs / 1000).toFixed(2)}s`);
+    await loadReconciliationSummary(data.data.batchId);
+  } catch (err) {
+    console.error('Error run reconciliation:', err);
+    alert('Reconciliation Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = origHtml;
+  }
+}
+
+async function loadReconciliationSummary(batchId) {
+  try {
+    let url = '/api/reconciliation/summary';
+    if (batchId) {
+      url += `?batchId=${batchId}`;
+      currentReconBatchId = batchId;
+    } else if (currentReconBatchId) {
+      url += `?batchId=${currentReconBatchId}`;
+    }
+
+    const res = await authFetch(url);
+    if (!res.ok) return;
+    const json = await res.json();
+    const data = json.data;
+
+    if (!data.hasData || !data.batch) {
+      document.getElementById('recon-kpi-total').innerText = '0';
+      document.getElementById('recon-kpi-clean').innerText = '0';
+      document.getElementById('recon-kpi-pending').innerText = '0';
+      document.getElementById('recon-kpi-unsettled').innerText = '0';
+      document.getElementById('recon-kpi-orphan').innerText = '0';
+      document.getElementById('recon-kpi-fee').innerText = 'Rp 0';
+      document.getElementById('recon-provider-tbody').innerHTML = '<tr><td colspan="9" class="empty-state">No reconciliation batches found. Click "Run 3-Way Match" above.</td></tr>';
+      document.getElementById('recon-items-tbody').innerHTML = '<tr><td colspan="10" class="empty-state">No reconciliation records available.</td></tr>';
+      return;
+    }
+
+    const b = data.batch;
+    currentReconBatchId = b.id;
+
+    // Populate Batch Selector
+    const batchSelect = document.getElementById('recon-batch-select');
+    if (batchSelect && data.recentBatches) {
+      batchSelect.innerHTML = data.recentBatches
+        .map((rb) => `<option value="${rb.id}" ${rb.id === b.id ? 'selected' : ''}>${escapeHtml(rb.batch_no)} (${formatDate(rb.created_at)})</option>`)
+        .join('');
+    }
+
+    // Populate KPIs
+    const totalTrx = parseInt(b.total_transactions || 0, 10);
+    const cleanTrx = parseInt(b.total_matched_clean || 0, 10);
+    const pendingTrx = parseInt(b.total_matched_pending || 0, 10);
+    const unsettledTrx = parseInt(b.total_dispute_unsettled || 0, 10);
+    const orphanTrx = parseInt(b.total_dispute_orphan_paid || 0, 10);
+    const feeAmt = parseFloat(b.total_fee_amount || 0);
+    const grossAmt = parseFloat(b.total_pg_gross_amount || 0);
+
+    const cleanPct = totalTrx > 0 ? ((cleanTrx / totalTrx) * 100).toFixed(1) : '0';
+    const effectiveFeePct = grossAmt > 0 ? ((feeAmt / grossAmt) * 100).toFixed(2) : '0';
+
+    document.getElementById('recon-kpi-total').innerText = totalTrx.toLocaleString('en-US');
+    document.getElementById('recon-kpi-clean').innerText = cleanTrx.toLocaleString('en-US');
+    document.getElementById('recon-kpi-clean-pct').innerText = `${cleanPct}% Clean Rate`;
+    document.getElementById('recon-kpi-pending').innerText = pendingTrx.toLocaleString('en-US');
+    document.getElementById('recon-kpi-unsettled').innerText = unsettledTrx.toLocaleString('en-US');
+    document.getElementById('recon-kpi-orphan').innerText = orphanTrx.toLocaleString('en-US');
+    document.getElementById('recon-kpi-fee').innerText = formatIDR(feeAmt);
+    document.getElementById('recon-kpi-fee-sub').innerText = `Effective MDR: ${effectiveFeePct}%`;
+
+    const batchInfoEl = document.getElementById('recon-batch-info');
+    if (batchInfoEl) {
+      batchInfoEl.innerHTML = `<i class="fa-solid fa-barcode"></i> ${escapeHtml(b.batch_no)}`;
+    }
+
+    // Populate Provider Breakdown Table
+    const provTbody = document.getElementById('recon-provider-tbody');
+    if (provTbody && data.providerBreakdown && data.providerBreakdown.length > 0) {
+      provTbody.innerHTML = data.providerBreakdown
+        .map((p) => {
+          const pName = p.provider || 'Other';
+          const pBadge = `<span class="source-pill source-${pName.toLowerCase().replace(/\s+/g, '_')}">${escapeHtml(pName)}</span>`;
+          return `
+            <tr>
+              <td>${pBadge}</td>
+              <td style="font-family: var(--font-mono); font-weight:600;">${parseInt(p.total_trx).toLocaleString('en-US')}</td>
+              <td style="font-family: var(--font-mono); color: #10B981;">${parseInt(p.clean_trx || 0).toLocaleString('en-US')}</td>
+              <td style="font-family: var(--font-mono); color: #F59E0B;">${parseInt(p.pending_trx || 0).toLocaleString('en-US')}</td>
+              <td style="font-family: var(--font-mono); color: ${p.dispute_trx > 0 ? '#EF4444' : 'var(--text-muted)'}; font-weight:700;">${parseInt(p.dispute_trx || 0).toLocaleString('en-US')}</td>
+              <td style="font-family: var(--font-mono);">${formatIDR(p.gross_amount)}</td>
+              <td style="font-family: var(--font-mono); color: #F59E0B;">${formatIDR(p.fee_amount)}</td>
+              <td style="font-family: var(--font-mono); color: #10B981; font-weight:700;">${formatIDR(p.net_amount)}</td>
+              <td style="font-family: var(--font-mono); color: #A78BFA; font-weight:600;">${p.effective_fee_pct}%</td>
+            </tr>
+          `;
+        })
+        .join('');
+    } else if (provTbody) {
+      provTbody.innerHTML = '<tr><td colspan="9" class="empty-state">No provider breakdown data available.</td></tr>';
+    }
+
+    // Load items for this batch
+    currentReconPage = 1;
+    await loadReconciliationItems(1);
+  } catch (err) {
+    console.error('Error loadReconciliationSummary:', err);
+  }
+}
+
+function switchReconBatch(batchId) {
+  if (batchId) {
+    currentReconBatchId = batchId;
+    loadReconciliationSummary(batchId);
+  }
+}
+
+async function loadReconciliationItems(page = currentReconPage) {
+  currentReconPage = page;
+  const statusFilter = document.getElementById('recon-filter-status')?.value || '';
+  const providerFilter = document.getElementById('recon-filter-provider')?.value || '';
+  const resolutionFilter = document.getElementById('recon-filter-resolution')?.value || '';
+  const search = document.getElementById('recon-search-input')?.value.trim() || '';
+
+  const params = new URLSearchParams({
+    page: currentReconPage,
+    limit: currentReconPageSize,
+  });
+
+  if (currentReconBatchId) params.append('batchId', currentReconBatchId);
+  if (statusFilter) params.append('reconStatus', statusFilter);
+  if (providerFilter && providerFilter !== 'ALL') params.append('provider', providerFilter);
+  if (resolutionFilter) params.append('resolutionStatus', resolutionFilter);
+  if (search) params.append('search', search);
+
+  const tbody = document.getElementById('recon-items-tbody');
+  tbody.innerHTML = '<tr><td colspan="10" class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i> Loading records...</td></tr>';
+
+  try {
+    const res = await authFetch(`/api/reconciliation/items?${params.toString()}`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    if (!data.items || data.items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No matching reconciliation records found.</td></tr>';
+      updateReconPagination(0, 0, 0);
+      return;
+    }
+
+    tbody.innerHTML = data.items
+      .map((item) => {
+        // Status Badge Mapping
+        let statusBadgeClass = `badge-${item.recon_status.toLowerCase()}`;
+        let statusLabel = item.recon_status.replace(/_/g, ' ');
+        if (item.recon_status === 'MATCH_CLEAN') statusLabel = '<i class="fa-solid fa-circle-check"></i> CLEAN MATCH';
+        else if (item.recon_status === 'MATCH_PENDING') statusLabel = '<i class="fa-solid fa-clock"></i> PENDING';
+        else if (item.recon_status === 'DISPUTE_UNSETTLED') statusLabel = '<i class="fa-solid fa-triangle-exclamation"></i> UNSETTLED (LEAK)';
+        else if (item.recon_status === 'DISPUTE_ORPHAN_PAID') statusLabel = '<i class="fa-solid fa-user-xmark"></i> ORPHAN PAID';
+        else if (item.recon_status === 'DISPUTE_AMOUNT_MISMATCH') statusLabel = '<i class="fa-solid fa-circle-half-stroke"></i> AMT MISMATCH';
+        else if (item.recon_status === 'MW_ORPHAN') statusLabel = '<i class="fa-solid fa-server"></i> MW ORPHAN';
+
+        // 3-Way Presence Pills
+        const hrtsPill = `<span class="presence-pill ${item.has_hrts ? 'active' : 'inactive'}">HRTS</span>`;
+        const mwPill = `<span class="presence-pill ${item.has_middleware ? 'active' : 'inactive'}">MW</span>`;
+        const pgPill = `<span class="presence-pill ${item.has_pg ? 'active' : 'inactive'}">PG</span>`;
+
+        // Resolution Badge
+        const resClass = `res-${(item.resolution_status || 'UNRESOLVED').toLowerCase()}`;
+
+        // Variance styling
+        const varianceVal = parseFloat(item.amount_variance || 0);
+        let varianceDisplay = '<span style="color:var(--text-muted);">-</span>';
+        if (varianceVal !== 0) {
+          varianceDisplay = `<span style="color:#EF4444; font-weight:700;">${formatIDR(varianceVal)}</span>`;
+        }
+
+        return `
+          <tr>
+            <td>
+              <span style="font-family: var(--font-mono); font-weight:700; color:#fff; font-size:12px;">${escapeHtml(item.golden_reference)}</span>
+            </td>
+            <td style="font-family: var(--font-mono); font-size:12px; color:var(--text-secondary);">${item.transaction_date || '-'}</td>
+            <td>
+              <span class="source-pill source-${(item.provider || '').toLowerCase().replace(/\s+/g, '_')}">${escapeHtml(item.provider || '-')}</span>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${escapeHtml(item.payment_channel || '-')}</div>
+            </td>
+            <td>
+              <div class="presence-group">${hrtsPill}${mwPill}${pgPill}</div>
+            </td>
+            <td style="font-family: var(--font-mono); font-weight:600; color:#FF4D5E;">${formatIDR(item.hrts_amount)}</td>
+            <td style="font-family: var(--font-mono); font-weight:600; color:#10B981;">${formatIDR(item.pg_net_amount)}</td>
+            <td style="font-family: var(--font-mono);">${varianceDisplay}</td>
+            <td>
+              <span class="recon-badge ${statusBadgeClass}">${statusLabel}</span>
+            </td>
+            <td>
+              <span class="res-badge ${resClass}">${escapeHtml(item.resolution_status || 'UNRESOLVED')}</span>
+            </td>
+            <td>
+              <button class="btn btn-sm btn-outline" onclick="openReconDetailModal(${item.id})" title="Inspect 3-way fields">
+                <i class="fa-solid fa-eye"></i> Inspect
+              </button>
+            </td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    updateReconPagination(data.total, data.page, data.totalPages);
+  } catch (err) {
+    console.error('Error loadReconciliationItems:', err);
+    tbody.innerHTML = '<tr><td colspan="10" class="empty-state">Error loading records.</td></tr>';
+  }
+}
+
+function updateReconPagination(totalRecords, page, totalPages) {
+  const infoEl = document.getElementById('recon-pagination-info');
+  const controlsEl = document.getElementById('recon-pagination-controls');
+  if (!infoEl || !controlsEl) return;
+
+  if (totalRecords === 0) {
+    infoEl.innerText = 'Showing 0–0 of 0 records';
+    controlsEl.innerHTML = '';
+    return;
+  }
+
+  const start = (page - 1) * currentReconPageSize + 1;
+  const end = Math.min(page * currentReconPageSize, totalRecords);
+  infoEl.innerText = `Showing ${start.toLocaleString('en-US')}–${end.toLocaleString('en-US')} of ${totalRecords.toLocaleString('en-US')} records`;
+
+  let navHtml = '';
+  navHtml += `
+    <button class="btn-page" ${page <= 1 ? 'disabled' : ''} onclick="loadReconciliationItems(${page - 1})">
+      <i class="fa-solid fa-chevron-left"></i>
+    </button>
+  `;
+
+  // Sliding window pagination
+  let startPage = Math.max(1, page - 2);
+  let endPage = Math.min(totalPages, page + 2);
+
+  if (startPage > 1) {
+    navHtml += `<button class="btn-page" onclick="loadReconciliationItems(1)">1</button>`;
+    if (startPage > 2) navHtml += `<span class="page-ellipsis">…</span>`;
+  }
+
+  for (let p = startPage; p <= endPage; p++) {
+    navHtml += `<button class="btn-page ${p === page ? 'active' : ''}" onclick="loadReconciliationItems(${p})">${p}</button>`;
+  }
+
+  if (endPage < totalPages) {
+    if (endPage < totalPages - 1) navHtml += `<span class="page-ellipsis">…</span>`;
+    navHtml += `<button class="btn-page" onclick="loadReconciliationItems(${totalPages})">${totalPages}</button>`;
+  }
+
+  navHtml += `
+    <button class="btn-page" ${page >= totalPages ? 'disabled' : ''} onclick="loadReconciliationItems(${page + 1})">
+      <i class="fa-solid fa-chevron-right"></i>
+    </button>
+  `;
+
+  controlsEl.innerHTML = navHtml;
+}
+
+function filterReconItems() {
+  currentReconPage = 1;
+  loadReconciliationItems(1);
+}
+
+function handleReconSearch(event) {
+  clearTimeout(reconSearchDebounceTimer);
+  reconSearchDebounceTimer = setTimeout(() => {
+    currentReconPage = 1;
+    loadReconciliationItems(1);
+  }, 350);
+}
+
+function changeReconPageSize(newSize) {
+  currentReconPageSize = parseInt(newSize, 10);
+  currentReconPage = 1;
+  loadReconciliationItems(1);
+}
+
+async function openReconDetailModal(itemId) {
+  try {
+    const res = await authFetch(`/api/reconciliation/items/${itemId}`);
+    if (!res.ok) return;
+    const json = await res.json();
+    const item = json.data;
+
+    document.getElementById('modal-recon-item-id').value = item.id;
+    document.getElementById('modal-recon-ref').innerText = item.golden_reference;
+
+    // Status Banner
+    const badgeEl = document.getElementById('modal-recon-badge');
+    badgeEl.className = `recon-badge badge-${item.recon_status.toLowerCase()}`;
+    badgeEl.innerText = item.recon_status.replace(/_/g, ' ');
+
+    let desc = '';
+    if (item.recon_status === 'MATCH_CLEAN') desc = 'Fully reconciled across Ticketing, Middleware, and Payment Gateway with zero dispute.';
+    else if (item.recon_status === 'MATCH_PENDING') desc = 'Payment recorded in PG but funds settlement is currently pending.';
+    else if (item.recon_status === 'DISPUTE_UNSETTLED') desc = 'Ticket sold in HRTS, but no payment was captured in Payment Gateway (Potential Revenue Leakage).';
+    else if (item.recon_status === 'DISPUTE_ORPHAN_PAID') desc = 'Customer paid via Payment Gateway, but ticket was NOT issued in HRTS (Customer Dispute Risk).';
+    else if (item.recon_status === 'DISPUTE_AMOUNT_MISMATCH') desc = 'Transaction reference matches, but nominal amount differs between ticketing and gateway settlement.';
+    else if (item.recon_status === 'MW_ORPHAN') desc = 'Transaction routed through middleware but aborted before ticketing or PG settlement.';
+    document.getElementById('modal-recon-desc').innerText = desc;
+
+    document.getElementById('modal-recon-variance').innerText = formatIDR(item.amount_variance || 0);
+
+    // Layer 1: HRTS
+    const hrtsBadge = document.getElementById('modal-hrts-present-badge');
+    if (item.has_hrts) {
+      hrtsBadge.className = 'layer-badge present';
+      hrtsBadge.innerText = 'Found';
+    } else {
+      hrtsBadge.className = 'layer-badge missing';
+      hrtsBadge.innerText = 'Missing';
+    }
+    document.getElementById('modal-hrts-order').innerText = item.hrts_order_no || '-';
+    document.getElementById('modal-hrts-tickets').innerText = item.hrts_ticket_count ? `${item.hrts_ticket_count} Tickets` : '-';
+    document.getElementById('modal-hrts-station').innerText = item.hrts_station || '-';
+    document.getElementById('modal-hrts-time').innerText = item.hrts_trade_time ? formatDate(item.hrts_trade_time) : '-';
+    document.getElementById('modal-hrts-fare').innerText = formatIDR(item.hrts_amount);
+
+    // Layer 2: Middleware
+    const mwBadge = document.getElementById('modal-mw-present-badge');
+    if (item.has_middleware) {
+      mwBadge.className = 'layer-badge present';
+      mwBadge.innerText = 'Logged';
+    } else {
+      mwBadge.className = 'layer-badge missing';
+      mwBadge.innerText = 'Not Logged';
+    }
+    document.getElementById('modal-mw-order').innerText = item.mw_order_id || '-';
+    document.getElementById('modal-mw-channel').innerText = item.mw_channel || '-';
+    document.getElementById('modal-mw-time').innerText = item.mw_transaction_time ? formatDate(item.mw_transaction_time) : '-';
+    document.getElementById('modal-mw-fee').innerText = formatIDR(item.mw_fee);
+    document.getElementById('modal-mw-amount').innerText = formatIDR(item.mw_amount);
+
+    // Layer 3: PG
+    const pgBadge = document.getElementById('modal-pg-present-badge');
+    if (item.has_pg) {
+      pgBadge.className = 'layer-badge present';
+      pgBadge.innerText = 'Settled / Captured';
+    } else {
+      pgBadge.className = 'layer-badge missing';
+      pgBadge.innerText = 'No PG Record';
+    }
+    document.getElementById('modal-pg-provider').innerText = `${item.provider || '-'} (${item.payment_channel || '-'})`;
+    document.getElementById('modal-pg-trx').innerText = item.pg_trx_id || '-';
+    document.getElementById('modal-pg-status').innerText = item.pg_settlement_status || '-';
+    document.getElementById('modal-pg-fee').innerText = formatIDR(item.pg_fee_amount);
+    document.getElementById('modal-pg-net').innerText = formatIDR(item.pg_net_amount);
+
+    // Resolution Form
+    document.getElementById('modal-resolution-status').value = item.resolution_status || 'UNRESOLVED';
+    document.getElementById('modal-resolution-notes').value = item.resolution_notes || '';
+
+    document.getElementById('recon-detail-modal').classList.remove('hidden');
+  } catch (err) {
+    console.error('Error openReconDetailModal:', err);
+  }
+}
+
+function closeReconDetailModal() {
+  document.getElementById('recon-detail-modal').classList.add('hidden');
+}
+
+async function submitItemResolution() {
+  const itemId = document.getElementById('modal-recon-item-id').value;
+  const resolutionStatus = document.getElementById('modal-resolution-status').value;
+  const resolutionNotes = document.getElementById('modal-resolution-notes').value;
+
+  if (!itemId) return;
+
+  try {
+    const res = await authFetch(`/api/reconciliation/items/${itemId}/resolution`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resolutionStatus, resolutionNotes }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to update resolution.');
+    }
+
+    closeReconDetailModal();
+    loadReconciliationItems(currentReconPage);
+  } catch (err) {
+    console.error('Error submitItemResolution:', err);
+    alert('Resolution Error: ' + err.message);
+  }
+}
+
+function exportReconciliationCsv() {
+  const statusFilter = document.getElementById('recon-filter-status')?.value || '';
+  const providerFilter = document.getElementById('recon-filter-provider')?.value || '';
+  const resolutionFilter = document.getElementById('recon-filter-resolution')?.value || '';
+
+  const params = new URLSearchParams();
+  if (currentReconBatchId) params.append('batchId', currentReconBatchId);
+  if (statusFilter) params.append('reconStatus', statusFilter);
+  if (providerFilter && providerFilter !== 'ALL') params.append('provider', providerFilter);
+  if (resolutionFilter) params.append('resolutionStatus', resolutionFilter);
+
+  // Trigger download with auth token in headers via fetch blob
+  const token = localStorage.getItem('hpr_auth_token') || sessionStorage.getItem('hpr_auth_token');
+  fetch(`/api/reconciliation/export?${params.toString()}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  })
+    .then(res => {
+      if (!res.ok) throw new Error('Failed to generate CSV export.');
+      return res.blob();
+    })
+    .then(blob => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `whoosh_reconciliation_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    })
+    .catch(err => {
+      alert('Export Error: ' + err.message);
+    });
+}
+

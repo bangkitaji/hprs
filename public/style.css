@@ -1929,6 +1929,332 @@ body {
   color: var(--cyan);
 }
 
+/* =====================================================================================
+   THREE-WAY RECONCILIATION HUB STYLES
+   ===================================================================================== */
+
+.recon-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.recon-controls-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.recon-batch-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recon-batch-select-wrap label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.recon-kpi-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.recon-filters-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 16px 20px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.recon-filters-bar .filter-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recon-filters-bar .filter-item label {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.recon-filters-bar .search-item {
+  flex: 1;
+  min-width: 240px;
+}
+
+.recon-filters-bar .search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 6px 14px;
+  width: 100%;
+}
+
+.recon-filters-bar .search-box i {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.recon-filters-bar .search-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 13px;
+  font-family: var(--font-main);
+  width: 100%;
+}
+
+/* 3-Way Presence Pills */
+.presence-group {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.presence-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.presence-pill.active {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.presence-pill.inactive {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-decoration: line-through;
+}
+
+/* Status Badges */
+.recon-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.02em;
+}
+
+.badge-match_clean {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-match_pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: #F59E0B;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-dispute_unsettled {
+  background: rgba(239, 68, 68, 0.15);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.badge-dispute_orphan_paid {
+  background: rgba(236, 72, 153, 0.15);
+  color: #EC4899;
+  border: 1px solid rgba(236, 72, 153, 0.3);
+}
+
+.badge-dispute_amount_mismatch {
+  background: rgba(168, 85, 247, 0.15);
+  color: #A855F7;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.badge-mw_orphan {
+  background: rgba(6, 182, 212, 0.15);
+  color: #06B6D4;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+/* Resolution Badges */
+.res-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.res-unresolved {
+  background: rgba(239, 68, 68, 0.1);
+  color: #FCA5A5;
+}
+
+.res-resolved {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34D399;
+}
+
+.res-ignored {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+}
+
+/* Modal 3-Way Inspector */
+.recon-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+
+.recon-banner-status {
+  display: flex;
+  align-items: center;
+}
+
+.recon-banner-variance {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.recon-columns-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 860px) {
+  .recon-columns-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.recon-layer-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.recon-layer-card .layer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.layer-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.layer-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.layer-badge.present {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10B981;
+}
+
+.layer-badge.missing {
+  background: rgba(239, 68, 68, 0.2);
+  color: #EF4444;
+}
+
+.layer-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.layer-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.layer-field .lf-label {
+  color: var(--text-muted);
+}
+
+.layer-field .lf-val {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  text-align: right;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-field.total-field {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-subtle);
+  font-weight: 700;
+}
+
+.layer-field.total-field .highlight-val {
+  font-size: 15px;
+}
+
+.recon-resolution-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+}
+
+.resolution-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+
 
 
 
