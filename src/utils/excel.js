@@ -40,8 +40,9 @@ function updateSheetRange(sheet) {
 }
 
 /**
- * Deteksi otomatis tipe sheet (Sales, Refund, atau Occupancy) serta letak baris header dan datanya.
- * Memeriksa hingga 5 baris pertama untuk mengantisipasi judul laporan di baris atas.
+ * Deteksi otomatis tipe sheet serta letak baris header dan datanya.
+ * Mendukung: Sales, Refund, Occupancy, Xendit, Finnet, Doku QR, dan Doku All.
+ * Memeriksa hingga 15 baris pertama untuk mengantisipasi judul laporan/metadata.
  */
 function detectSheetStructure(sheet) {
   if (!sheet || !sheet['!ref']) {
@@ -49,7 +50,7 @@ function detectSheetStructure(sheet) {
   }
 
   const range = xlsx.utils.decode_range(sheet['!ref']);
-  const maxScanRow = Math.min(range.e.r, range.s.r + 4);
+  const maxScanRow = Math.min(range.e.r, range.s.r + 15);
 
   for (let r = range.s.r; r <= maxScanRow; r++) {
     const rowHeaders = [];
@@ -65,23 +66,43 @@ function detectSheetStructure(sheet) {
       }
     }
 
-    // Identifikasi Occupancy Report
+    // 1. Identifikasi Doku QR (kolom QRIS Transaction Id atau kombinasi customerpan & invoiceacquirer)
+    if (rowHeaders.includes('qristransactionid') || (rowHeaders.includes('customerpan') && rowHeaders.includes('invoiceacquirer'))) {
+      return { sheetType: 'pg_doku_qr', headerRowIdx: r, dataStartRowIdx: r + 1, colMap };
+    }
+
+    // 2. Identifikasi Finnet (kolom trxinvoice dan trxamountsettle / sofdesc)
+    if (rowHeaders.includes('trxinvoice') && (rowHeaders.includes('trxamountsettle') || rowHeaders.includes('sofdesc'))) {
+      return { sheetType: 'pg_finnet', headerRowIdx: r, dataStartRowIdx: r + 1, colMap };
+    }
+
+    // 3. Identifikasi Xendit (kolom transactionid dan reference serta channel / settlementstatus)
+    if (rowHeaders.includes('transactionid') && rowHeaders.includes('reference') && (rowHeaders.includes('settlementstatus') || rowHeaders.includes('netamount'))) {
+      return { sheetType: 'pg_xendit', headerRowIdx: r, dataStartRowIdx: r + 1, colMap };
+    }
+
+    // 4. Identifikasi Doku All (kolom invoicenumber, paymentmethod, dan additionalinfo)
+    if (rowHeaders.includes('invoicenumber') && rowHeaders.includes('paymentmethod') && rowHeaders.includes('additionalinfo')) {
+      return { sheetType: 'pg_doku_all', headerRowIdx: r, dataStartRowIdx: r + 1, colMap };
+    }
+
+    // 5. Identifikasi Occupancy Report
     if (rowHeaders.includes('trainnumber') && (rowHeaders.includes('sumpsg') || rowHeaders.includes('capacityperclass') || rowHeaders.includes('totfare'))) {
       return { sheetType: 'occupancy', headerRowIdx: r, dataStartRowIdx: r + 1, colMap };
     }
 
-    // Identifikasi Refund Report
+    // 6. Identifikasi Refund Report
     if (rowHeaders.includes('refunddate') && (rowHeaders.includes('refundamount') || rowHeaders.includes('refundcharge'))) {
       return { sheetType: 'refund', headerRowIdx: r, dataStartRowIdx: r + 1, colMap };
     }
 
-    // Identifikasi Sales Report
+    // 7. Identifikasi Sales Report
     if (rowHeaders.includes('purchasedate') && rowHeaders.includes('ticketno')) {
       return { sheetType: 'sales', headerRowIdx: r, dataStartRowIdx: r + 1, colMap };
     }
   }
 
-  return { sheetType: 'unknown', headerRowIdx: 2, dataStartRowIdx: 3, colMap: [] };
+  return { sheetType: 'unknown', headerRowIdx: 0, dataStartRowIdx: 1, colMap: [] };
 }
 
 module.exports = {

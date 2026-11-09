@@ -84,6 +84,20 @@ function parseExcelTimestamp(val) {
   }
   if (typeof val === 'string') {
     const trimmed = val.trim();
+    // Format YYYYMMDDHHMMSS (contoh: 20261001000246)
+    if (/^\d{14}$/.test(trimmed)) {
+      return `${trimmed.slice(0, 4)}-${trimmed.slice(4, 6)}-${trimmed.slice(6, 8)} ${trimmed.slice(8, 10)}:${trimmed.slice(10, 12)}:${trimmed.slice(12, 14)}`;
+    }
+    // Format "31 Oct 2026, 23:57:17" atau "31 Oct 2026"
+    const matchMonthName = trimmed.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})(?:,\s*(\d{1,2}:\d{2}(?::\d{2})?))?/);
+    if (matchMonthName) {
+      const months = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
+      const d = matchMonthName[1].padStart(2, '0');
+      const m = months[matchMonthName[2].toLowerCase()] || '01';
+      const y = matchMonthName[3];
+      const time = matchMonthName[4] || '00:00:00';
+      return `${y}-${m}-${d} ${time.length === 5 ? time + ':00' : time}`;
+    }
     // Format DD/MM/YYYY HH:mm:ss atau DD-MM-YYYY HH:mm:ss
     const matchDMY = trimmed.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:\s+(\d{1,2}:\d{2}(?::\d{2})?))?/);
     if (matchDMY) {

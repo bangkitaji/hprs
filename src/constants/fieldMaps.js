@@ -1,5 +1,5 @@
 /**
- * Kamus Pemetaan Header Kolom Excel ke Kolom Tabel Database PostgreSQL
+ * Kamus Pemetaan Header Kolom Excel / CSV / TXT ke Kolom Tabel Database PostgreSQL
  * Key: nama header yang telah dinormalisasi (lowercase, alfanumerik)
  * Value: nama kolom database
  */
@@ -111,6 +111,140 @@ const OCCUPANCY_FIELD_MAP = {
   fare: 'fare',
 };
 
+const MIDDLEWARE_FIELD_MAP = {
+  businessserialnumber: 'business_serial_number',
+  middlewareserialnumber: 'middleware_serial_number',
+  pgserialnumber: 'pg_serial_number',
+  middlewaretransactiontime: 'middleware_transaction_time',
+  pgtransactiontime: 'pg_transaction_time',
+  transactioncurrency: 'transaction_currency',
+  processingfee: 'processing_fee',
+  transactionamount: 'transaction_amount',
+  settlementamount: 'settlement_amount',
+  paymentgateway: 'payment_gateway',
+  paymentmethod: 'payment_method',
+  paymentchannel: 'payment_channel',
+  ticketsaleschannel: 'ticket_sales_channel',
+  transactiontype: 'transaction_type',
+  paymentbank: 'payment_bank',
+  settlementdate: 'settlement_date',
+  merchantname: 'merchant_name',
+  merchantid: 'merchant_id',
+  promotionamount: 'promotion_amount',
+  consumerid: 'consumer_id',
+  name: 'passenger_name',
+  himbarafee: 'himbara_fee',
+  additionalvat: 'additional_vat',
+};
+
+const XENDIT_FIELD_MAP = {
+  status: 'status',
+  type: 'type',
+  channel: 'channel',
+  channelname: 'channel_name',
+  accountnumber: 'account_number',
+  currency: 'currency',
+  amount: 'amount',
+  netamount: 'net_amount',
+  reference: 'reference',
+  transactionid: 'transaction_id',
+  invoiceid: 'invoice_id',
+  batchid: 'batch_id',
+  paymentdate: 'payment_date',
+  timestampcreated: 'created_timestamp',
+  timestampupdated: 'updated_timestamp',
+  timezone: 'timezone',
+  description: 'description',
+  channelreference: 'channel_reference',
+  settlementstatus: 'settlement_status',
+  actualsettlementtime: 'actual_settlement_time',
+  estimatedsettlementtime: 'estimated_settlement_time',
+  productid: 'product_id',
+  totalfee: 'total_fee',
+  totalvat: 'total_vat',
+};
+
+const FINNET_FIELD_MAP = {
+  trxinvoice: 'trx_invoice',
+  createdat: 'created_at_dt',
+  updatedat: 'updated_at_dt',
+  expiredat: 'expired_at_dt',
+  paymentat: 'payment_at_dt',
+  merchantid: 'merchant_id',
+  sofdesc: 'sof_desc',
+  trxcurrency: 'trx_currency',
+  trxamount: 'trx_amount',
+  trxamountpayment: 'trx_amount_payment',
+  trxamountsettle: 'trx_amount_settle',
+  totalcaptureamount: 'total_capture_amount',
+  trxdesc: 'trx_desc',
+  paymentstatus: 'payment_status',
+  externaltrxid: 'external_trx_id',
+  externalorderid: 'external_order_id',
+  externalaccountid: 'external_account_id',
+  triggerby: 'trigger_by',
+  transactionmode: 'transaction_mode',
+  paymentcode: 'payment_code',
+  paymentchannel: 'payment_channel',
+  refno: 'ref_no',
+  metadata: 'meta_data',
+  sessiondata: 'session_data',
+};
+
+const DOKU_QR_FIELD_MAP = {
+  merchantname: 'merchant_name',
+  issuername: 'issuer_name',
+  transactiondate: 'transaction_date',
+  amount: 'amount',
+  status: 'status',
+  referencenumber: 'reference_number',
+  customerpan: 'customer_pan',
+  customername: 'customer_name',
+  transactionid: 'transaction_id',
+  invoiceacquirer: 'invoice_acquirer',
+  invoicenumber: 'invoice_number',
+  qristransactionid: 'qris_transaction_id',
+  terminalid: 'terminal_id',
+};
+
+const DOKU_ALL_FIELD_MAP = {
+  invoicenumber: 'invoice_number',
+  date: 'transaction_date',
+  amount: 'amount',
+  paymentmethod: 'payment_method',
+  status: 'status',
+  activity: 'activity',
+  paymenttype: 'payment_type',
+  customername: 'customer_name',
+  customeremail: 'customer_email',
+  brandid: 'brand_id',
+  acquirername: 'acquirer_name',
+  mid: 'mid',
+  tid: 'tid',
+  tenor: 'tenor',
+  issuingbank: 'issuing_bank',
+  approvalcode: 'approval_code',
+  ordernumber: 'order_number',
+  cardmasked: 'card_masked',
+  bankbatchnumber: 'bank_batch_number',
+  banksettlementdate: 'bank_settlement_date',
+  paymentnumber: 'payment_number',
+  responsecode: 'response_code',
+  responsemessage: 'response_message',
+  additionalinfo: 'additional_info',
+  requestid: 'request_id',
+  cardexpirydate: 'card_expiry_date',
+  billingnumber: 'billing_number',
+  brandname: 'brand_name',
+  promocode: 'promo_code',
+  totalamount: 'total_amount',
+  discountamount: 'discount_amount',
+  paidamount: 'paid_amount',
+  cardholdername: 'card_holder_name',
+  referencenumber: 'reference_number',
+  cashbackamount: 'cashback_amount',
+};
+
 const SALES_DB_FIELDS = [
   'seq_no', 'passenger_name', 'nik_passport_no', 'nationality', 'order_no', 'ticket_no',
   'ticketing_station', 'business_area', 'office_no', 'window_no', 'shift_no', 'operator_name',
@@ -140,11 +274,91 @@ const OCCUPANCY_DB_FIELDS = [
   'seat_class', 'capacity_per_class', 'occupancy_rate', 'sum_passengers', 'total_fare', 'fare'
 ];
 
+const MIDDLEWARE_DB_FIELDS = [
+  'business_serial_number', 'middleware_serial_number', 'pg_serial_number',
+  'middleware_transaction_time', 'pg_transaction_time', 'transaction_currency',
+  'processing_fee', 'transaction_amount', 'settlement_amount', 'payment_gateway',
+  'payment_method', 'payment_channel', 'ticket_sales_channel', 'transaction_type',
+  'payment_bank', 'settlement_date', 'merchant_name', 'merchant_id',
+  'promotion_amount', 'consumer_id', 'passenger_name', 'himbara_fee', 'additional_vat'
+];
+
+const XENDIT_DB_FIELDS = [
+  'transaction_id', 'reference', 'status', 'type', 'channel', 'channel_name',
+  'account_number', 'currency', 'amount', 'net_amount', 'invoice_id', 'batch_id',
+  'payment_date', 'created_timestamp', 'updated_timestamp', 'timezone',
+  'description', 'channel_reference', 'settlement_status', 'actual_settlement_time',
+  'estimated_settlement_time', 'product_id', 'total_fee', 'total_vat'
+];
+
+const FINNET_DB_FIELDS = [
+  'trx_invoice', 'created_at_dt', 'updated_at_dt', 'expired_at_dt', 'payment_at_dt',
+  'merchant_id', 'sof_desc', 'trx_currency', 'trx_amount', 'trx_amount_payment',
+  'trx_amount_settle', 'total_capture_amount', 'trx_desc', 'payment_status',
+  'external_trx_id', 'external_order_id', 'external_account_id', 'trigger_by',
+  'transaction_mode', 'payment_code', 'payment_channel', 'ref_no', 'meta_data', 'session_data'
+];
+
+const DOKU_QR_DB_FIELDS = [
+  'transaction_id', 'qris_transaction_id', 'reference_number', 'merchant_name',
+  'issuer_name', 'transaction_date', 'amount', 'status', 'customer_pan',
+  'customer_name', 'invoice_acquirer', 'invoice_number', 'terminal_id'
+];
+
+const DOKU_ALL_DB_FIELDS = [
+  'invoice_number', 'transaction_date', 'amount', 'payment_method', 'status',
+  'activity', 'payment_type', 'customer_name', 'customer_email', 'brand_id',
+  'acquirer_name', 'mid', 'tid', 'tenor', 'issuing_bank', 'approval_code',
+  'order_number', 'card_masked', 'bank_batch_number', 'bank_settlement_date',
+  'payment_number', 'response_code', 'response_message', 'additional_info',
+  'request_id', 'card_expiry_date', 'billing_number', 'brand_name', 'promo_code',
+  'total_amount', 'discount_amount', 'paid_amount', 'card_holder_name',
+  'reference_number', 'cashback_amount'
+];
+
+// Header standar untuk Middleware jika file tidak menyertakan header
+const MIDDLEWARE_DEFAULT_HEADERS = [
+  'Business Serial Number',
+  'Middleware Serial Number',
+  'PG Serial Number',
+  'Middleware Transaction Time',
+  'PG Transaction Time',
+  'Transaction Currency',
+  'Processing Fee',
+  'Transaction Amount',
+  'Settlement Amount',
+  'Payment Gateway',
+  'Payment Method',
+  'Payment Channel',
+  'Ticket Sales Channel',
+  'Transaction Type',
+  'Payment Bank',
+  'Settlement Date',
+  'Merchant Name',
+  'Merchant ID',
+  'Promotion Amount',
+  'Consumer ID',
+  'Name',
+  'Himbara Fee',
+  'Additional VAT'
+];
+
 module.exports = {
   SALES_FIELD_MAP,
   REFUND_FIELD_MAP,
   OCCUPANCY_FIELD_MAP,
+  MIDDLEWARE_FIELD_MAP,
+  XENDIT_FIELD_MAP,
+  FINNET_FIELD_MAP,
+  DOKU_QR_FIELD_MAP,
+  DOKU_ALL_FIELD_MAP,
   SALES_DB_FIELDS,
   REFUND_DB_FIELDS,
   OCCUPANCY_DB_FIELDS,
+  MIDDLEWARE_DB_FIELDS,
+  XENDIT_DB_FIELDS,
+  FINNET_DB_FIELDS,
+  DOKU_QR_DB_FIELDS,
+  DOKU_ALL_DB_FIELDS,
+  MIDDLEWARE_DEFAULT_HEADERS,
 };

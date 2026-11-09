@@ -10,6 +10,57 @@ let currentUploadedFile = null;
 let currentPreviewData = null;
 let activePreviewSheet = null;
 
+let currentUploadCategory = 'hrts'; // 'hrts', 'middleware', 'payment_gateway'
+let currentPgProvider = 'auto'; // 'auto', 'xendit', 'finnet', 'doku_all', 'doku_qr'
+let currentHistorySourceFilter = '';
+
+function setUploadCategory(cat) {
+  currentUploadCategory = cat;
+  document.querySelectorAll('.category-btn').forEach((btn) => btn.classList.remove('active'));
+  const activeBtn = document.getElementById(`cat-btn-${cat === 'payment_gateway' ? 'pg' : cat}`);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  const pgBar = document.getElementById('pg-provider-bar');
+  const cardTitle = document.getElementById('upload-card-title');
+  const cardDesc = document.getElementById('upload-card-desc');
+  const cardBadge = document.getElementById('upload-card-badge');
+  const dropTitle = document.getElementById('dropzone-title');
+
+  if (cat === 'payment_gateway') {
+    if (pgBar) pgBar.classList.remove('hidden');
+    if (cardTitle) cardTitle.innerHTML = '<i class="fa-solid fa-credit-card card-icon"></i> Upload Payment Gateway Settlement Files';
+    if (cardDesc) cardDesc.innerHTML = 'Supports settlement reports from <strong>Xendit (.csv), Finnet (.xlsx), Doku All (.csv), and Doku QR (.xlsx)</strong>.';
+    if (cardBadge) cardBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Multi-PG Settlement Reconciliation';
+    if (dropTitle) dropTitle.innerText = 'Drag & drop Payment Gateway files here';
+  } else if (cat === 'middleware') {
+    if (pgBar) pgBar.classList.add('hidden');
+    if (cardTitle) cardTitle.innerHTML = '<i class="fa-solid fa-server card-icon"></i> Upload Middleware Transaction Logs';
+    if (cardDesc) cardDesc.innerHTML = 'Supports middleware exports (<strong>.txt with "||" delimiter</strong>, .csv, or .xlsx). Auto-detects header presence.';
+    if (cardBadge) cardBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Double Pipe (||) Log Ingestion';
+    if (dropTitle) dropTitle.innerText = 'Drag & drop Middleware (.txt / .csv) files here';
+  } else {
+    if (pgBar) pgBar.classList.add('hidden');
+    if (cardTitle) cardTitle.innerHTML = '<i class="fa-solid fa-file-excel card-icon"></i> Upload Ticketing & Occupancy Excel Files';
+    if (cardDesc) cardDesc.innerHTML = 'Supports native ticketing system export formats (.xlsx / .xls). <strong>Auto-detects Sales, Refund, & Occupancy report structures.</strong>';
+    if (cardBadge) cardBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Auto-Detect Sales, Refund & Occupancy';
+    if (dropTitle) dropTitle.innerText = 'Drag & drop HRTS Excel files here';
+  }
+  resetUpload();
+}
+
+function setPgProvider(provider) {
+  currentPgProvider = provider;
+  document.querySelectorAll('.pg-chip').forEach((c) => c.classList.remove('active'));
+  const activeChip = document.getElementById(`pg-chip-${provider}`);
+  if (activeChip) activeChip.classList.add('active');
+}
+
+function filterUploadHistory(sourceValue) {
+  currentHistorySourceFilter = sourceValue || '';
+  historyCurrentPage = 1;
+  loadUploadHistory();
+}
+
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
   initAuth();
@@ -385,8 +436,8 @@ function handleFileSelect(e) {
 }
 
 async function processSelectedFile(file) {
-  if (!file.name.match(/\.(xlsx|xls)$/i)) {
-    alert('Unsupported file format! Please upload an Excel file (.xlsx or .xls)');
+  if (!file.name.match(/\.(xlsx|xls|csv|txt)$/i)) {
+    alert('Unsupported file format! Please upload an Excel (.xlsx, .xls), CSV (.csv), or Text (.txt) file.');
     return;
   }
 
@@ -448,12 +499,56 @@ function renderSheetOptions(data) {
     `${(data.fileSize / (1024 * 1024)).toFixed(2)} MB • ${data.sheets.length} Worksheets Detected`;
 
   data.sheets.forEach((sheet, idx) => {
-    const isSales = sheet.detectedType === 'sales';
-    const isRefund = sheet.detectedType === 'refund';
-    const isOccupancy = sheet.detectedType === 'occupancy';
-    const cardClass = isSales ? 'detected-sales' : (isRefund ? 'detected-refund' : (isOccupancy ? 'detected-occupancy' : ''));
-    const badgeClass = isSales ? 'badge-sales' : (isRefund ? 'badge-refund' : (isOccupancy ? 'badge-occupancy' : ''));
-    const typeLabel = isSales ? 'Ticket Sales' : (isRefund ? 'Ticket Refund' : (isOccupancy ? 'Occupancy Report' : 'Custom'));
+    let cardClass = '';
+    let badgeClass = '';
+    let typeLabel = 'Data Sheet';
+
+    switch (sheet.detectedType) {
+      case 'sales':
+        cardClass = 'detected-sales';
+        badgeClass = 'badge-sales';
+        typeLabel = 'Ticket Sales';
+        break;
+      case 'refund':
+        cardClass = 'detected-refund';
+        badgeClass = 'badge-refund';
+        typeLabel = 'Ticket Refund';
+        break;
+      case 'occupancy':
+        cardClass = 'detected-occupancy';
+        badgeClass = 'badge-occupancy';
+        typeLabel = 'Occupancy Report';
+        break;
+      case 'middleware':
+        cardClass = 'detected-middleware';
+        badgeClass = 'badge-middleware';
+        typeLabel = 'Middleware Log';
+        break;
+      case 'pg_xendit':
+        cardClass = 'detected-xendit';
+        badgeClass = 'badge-xendit';
+        typeLabel = 'Xendit Settlement';
+        break;
+      case 'pg_finnet':
+        cardClass = 'detected-finnet';
+        badgeClass = 'badge-finnet';
+        typeLabel = 'Finnet Settlement';
+        break;
+      case 'pg_doku_qr':
+        cardClass = 'detected-doku-qr';
+        badgeClass = 'badge-doku-qr';
+        typeLabel = 'Doku QRIS Report';
+        break;
+      case 'pg_doku_all':
+        cardClass = 'detected-doku-all';
+        badgeClass = 'badge-doku-all';
+        typeLabel = 'Doku All Data';
+        break;
+      default:
+        cardClass = '';
+        badgeClass = '';
+        typeLabel = 'Data Sheet';
+    }
 
     const card = document.createElement('div');
     card.className = `sheet-card ${cardClass}`;
@@ -605,30 +700,75 @@ function renderSuccessCard(results) {
   const grid = document.getElementById('result-metrics-grid');
 
   document.getElementById('result-message-text').innerText = 
-    `File "${results.fileName}" has been processed successfully. Records are safely stored in PostgreSQL partitions and summaries are consolidated.`;
+    `File "${results.fileName}" has been processed successfully. Records are safely stored in PostgreSQL and summaries are consolidated.`;
 
-  const totalOccupancy = results.totalOccupancyInserted || 0;
   const durationSec = (results.durationMs / 1000).toFixed(2);
+  let metricsHtml = '';
 
-  grid.innerHTML = `
-    <div class="metric-box">
-      <div class="metric-box-label">Sales Records</div>
-      <div class="metric-box-val" style="color: #FF4D5E;">${(results.totalSalesInserted || 0).toLocaleString('en-US')}</div>
-    </div>
-    <div class="metric-box">
-      <div class="metric-box-label">Refund Records</div>
-      <div class="metric-box-val" style="color: #06B6D4;">${(results.totalRefundInserted || 0).toLocaleString('en-US')}</div>
-    </div>
-    <div class="metric-box">
-      <div class="metric-box-label">Occupancy Records</div>
-      <div class="metric-box-val" style="color: #C084FC;">${totalOccupancy.toLocaleString('en-US')}</div>
-    </div>
+  if (results.totalSalesInserted > 0) {
+    metricsHtml += `
+      <div class="metric-box">
+        <div class="metric-box-label">Sales Records</div>
+        <div class="metric-box-val" style="color: #FF4D5E;">${results.totalSalesInserted.toLocaleString('en-US')}</div>
+      </div>`;
+  }
+  if (results.totalRefundInserted > 0) {
+    metricsHtml += `
+      <div class="metric-box">
+        <div class="metric-box-label">Refund Records</div>
+        <div class="metric-box-val" style="color: #06B6D4;">${results.totalRefundInserted.toLocaleString('en-US')}</div>
+      </div>`;
+  }
+  if (results.totalOccupancyInserted > 0) {
+    metricsHtml += `
+      <div class="metric-box">
+        <div class="metric-box-label">Occupancy Records</div>
+        <div class="metric-box-val" style="color: #C084FC;">${results.totalOccupancyInserted.toLocaleString('en-US')}</div>
+      </div>`;
+  }
+  if (results.totalMiddlewareInserted > 0) {
+    metricsHtml += `
+      <div class="metric-box">
+        <div class="metric-box-label">Middleware Logs</div>
+        <div class="metric-box-val" style="color: #06B6D4;">${results.totalMiddlewareInserted.toLocaleString('en-US')}</div>
+      </div>`;
+  }
+  if (results.totalXenditInserted > 0) {
+    metricsHtml += `
+      <div class="metric-box">
+        <div class="metric-box-label">Xendit Records</div>
+        <div class="metric-box-val" style="color: #10B981;">${results.totalXenditInserted.toLocaleString('en-US')}</div>
+      </div>`;
+  }
+  if (results.totalFinnetInserted > 0) {
+    metricsHtml += `
+      <div class="metric-box">
+        <div class="metric-box-label">Finnet Records</div>
+        <div class="metric-box-val" style="color: #F59E0B;">${results.totalFinnetInserted.toLocaleString('en-US')}</div>
+      </div>`;
+  }
+  if (results.totalDokuQrInserted > 0) {
+    metricsHtml += `
+      <div class="metric-box">
+        <div class="metric-box-label">Doku QR Records</div>
+        <div class="metric-box-val" style="color: #A78BFA;">${results.totalDokuQrInserted.toLocaleString('en-US')}</div>
+      </div>`;
+  }
+  if (results.totalDokuAllInserted > 0) {
+    metricsHtml += `
+      <div class="metric-box">
+        <div class="metric-box-label">Doku All Records</div>
+        <div class="metric-box-val" style="color: #F472B6;">${results.totalDokuAllInserted.toLocaleString('en-US')}</div>
+      </div>`;
+  }
+
+  metricsHtml += `
     <div class="metric-box">
       <div class="metric-box-label">Execution Time</div>
       <div class="metric-box-val">${durationSec} sec</div>
-    </div>
-  `;
+    </div>`;
 
+  grid.innerHTML = metricsHtml;
   card.classList.remove('hidden');
 }
 
@@ -758,10 +898,11 @@ async function loadUploadHistory(page = historyCurrentPage, limit = historyPageS
     pageSizeSelect.value = String(limit);
   }
 
-  tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Loading upload history...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Loading upload history...</td></tr>';
 
   try {
-    const res = await authFetch(`/api/history?page=${page}&limit=${limit}`);
+    const filterParam = currentHistorySourceFilter ? `&source=${encodeURIComponent(currentHistorySourceFilter)}` : '';
+    const res = await authFetch(`/api/history?page=${page}&limit=${limit}${filterParam}`);
     if (!res.ok) return;
     const result = await res.json();
 
@@ -770,7 +911,7 @@ async function loadUploadHistory(page = historyCurrentPage, limit = historyPageS
     historyTotalPages = result.totalPages !== undefined ? result.totalPages : Math.ceil(historyTotalRecords / limit) || 1;
 
     if (!items || items.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No uploaded file history found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No uploaded file history found for the selected criteria.</td></tr>';
       if (infoEl) infoEl.textContent = 'Showing 0–0 of 0 records';
       if (navEl) navEl.innerHTML = '';
       return;
@@ -787,9 +928,15 @@ async function loadUploadHistory(page = historyCurrentPage, limit = historyPageS
         const durationSec = item.duration_ms ? (item.duration_ms / 1000).toFixed(2) + 's' : '-';
         const targetDate = item.target_date ? item.target_date.slice(0, 10) : '-';
 
+        const srcType = item.source_type || 'hrts';
+        const providerName = item.provider ? item.provider.toUpperCase().replace('_', ' ') : srcType.toUpperCase();
+        const sourceClass = `source-${item.provider || srcType}`;
+        const sourceBadge = `<span class="source-pill ${sourceClass}">${escapeHtml(providerName)}</span>`;
+
         return `
           <tr>
             <td>${formattedDate}</td>
+            <td>${sourceBadge}</td>
             <td><strong>${escapeHtml(item.file_name)}</strong></td>
             <td>${escapeHtml(item.sheet_name || '-')}</td>
             <td>${targetDate}</td>
@@ -811,7 +958,7 @@ async function loadUploadHistory(page = historyCurrentPage, limit = historyPageS
     // Render Pagination Controls
     renderHistoryPaginationControls();
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="7" class="empty-state" style="color:#FF4D5E;">Failed to load history: ${escapeHtml(err.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-state" style="color:#FF4D5E;">Failed to load history: ${escapeHtml(err.message)}</td></tr>`;
     if (infoEl) infoEl.textContent = 'Showing 0–0 of 0 records';
     if (navEl) navEl.innerHTML = '';
   }

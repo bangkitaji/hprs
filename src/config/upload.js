@@ -28,18 +28,13 @@ const upload = multer({
     fileSize: maxUploadSizeMb * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
-    // Validasi ekstensi dan MIME type excel
+    // Validasi ekstensi yang didukung: Excel (.xlsx, .xls), CSV (.csv), dan Text (.txt)
     const ext = path.extname(file.originalname).toLowerCase();
-    const allowedExts = ['.xlsx', '.xls'];
-    const allowedMimes = [
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-excel',
-      'application/octet-stream',
-    ];
-    if (allowedExts.includes(ext) && (allowedMimes.includes(file.mimetype) || !file.mimetype)) {
+    const allowedExts = ['.xlsx', '.xls', '.csv', '.txt'];
+    if (allowedExts.includes(ext)) {
       return cb(null, true);
     }
-    cb(new Error('Unsupported file format! Please upload an Excel file (.xlsx or .xls)'));
+    cb(new Error('Unsupported file format! Please upload an Excel (.xlsx, .xls), CSV (.csv), or Text (.txt) file.'));
   },
 });
 

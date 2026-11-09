@@ -450,6 +450,21 @@ body {
 .sheet-card.detected-occupancy {
   border-left: 4px solid #A855F7;
 }
+.sheet-card.detected-middleware {
+  border-left: 4px solid #06B6D4;
+}
+.sheet-card.detected-xendit {
+  border-left: 4px solid #10B981;
+}
+.sheet-card.detected-finnet {
+  border-left: 4px solid #F59E0B;
+}
+.sheet-card.detected-doku-qr {
+  border-left: 4px solid #8B5CF6;
+}
+.sheet-card.detected-doku-all {
+  border-left: 4px solid #EC4899;
+}
 
 .sheet-info-group {
   display: flex;
@@ -474,6 +489,26 @@ body {
 .badge-occupancy {
   background: rgba(168, 85, 247, 0.15);
   color: #C084FC;
+}
+.badge-middleware {
+  background: rgba(6, 182, 212, 0.15);
+  color: #06B6D4;
+}
+.badge-xendit {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+}
+.badge-finnet {
+  background: rgba(245, 158, 11, 0.15);
+  color: #F59E0B;
+}
+.badge-doku-qr {
+  background: rgba(139, 92, 246, 0.15);
+  color: #A78BFA;
+}
+.badge-doku-all {
+  background: rgba(236, 72, 153, 0.15);
+  color: #F472B6;
 }
 
 .sheet-name {
@@ -1660,6 +1695,214 @@ body {
     flex-direction: column;
     gap: 4px;
   }
+  .source-category-nav {
+    grid-template-columns: 1fr;
+  }
 }
+
+/* =====================================================================================
+   Source Category Navigation & Payment Gateway Provider Selector
+   ===================================================================================== */
+.source-category-nav {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.category-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  text-align: left;
+}
+
+.category-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--border-bright);
+  transform: translateY(-1px);
+}
+
+.category-btn i {
+  font-size: 22px;
+  color: var(--text-muted);
+  transition: all 0.25s ease;
+}
+
+.category-btn.active {
+  background: rgba(230, 0, 18, 0.08);
+  border-color: var(--crimson);
+  color: var(--text-primary);
+  box-shadow: 0 0 15px rgba(230, 0, 18, 0.2);
+}
+
+.category-btn.active i {
+  color: var(--crimson);
+}
+
+.category-btn-title {
+  display: block;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.category-btn-desc {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* PG Provider Chips Bar */
+.pg-provider-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  background: rgba(14, 21, 38, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.pg-bar-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pg-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pg-chip:hover {
+  border-color: var(--border-bright);
+  color: var(--text-primary);
+}
+
+.pg-chip.active {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--cyan);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.25);
+}
+
+.provider-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-xendit { background-color: #10B981; box-shadow: 0 0 6px #10B981; }
+.dot-finnet { background-color: #F59E0B; box-shadow: 0 0 6px #F59E0B; }
+.dot-doku { background-color: #EC4899; box-shadow: 0 0 6px #EC4899; }
+.dot-doku-qr { background-color: #8B5CF6; box-shadow: 0 0 6px #8B5CF6; }
+
+/* History Source Filter & Source Pill */
+.history-filter-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.history-filter-wrap label {
+  font-size: 13px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-select {
+  padding: 6px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-main);
+  outline: none;
+  cursor: pointer;
+}
+
+.filter-select:focus {
+  border-color: var(--cyan);
+}
+
+.source-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+}
+
+.source-pill.source-hrts {
+  background: rgba(230, 0, 18, 0.15);
+  color: #FF4D5E;
+}
+
+.source-pill.source-middleware {
+  background: rgba(6, 182, 212, 0.15);
+  color: #06B6D4;
+}
+
+.source-pill.source-xendit {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+}
+
+.source-pill.source-finnet {
+  background: rgba(245, 158, 11, 0.15);
+  color: #F59E0B;
+}
+
+.source-pill.source-doku_qr {
+  background: rgba(139, 92, 246, 0.15);
+  color: #A78BFA;
+}
+
+.source-pill.source-doku_all {
+  background: rgba(236, 72, 153, 0.15);
+  color: #F472B6;
+}
+
+.source-pill.source-payment_gateway {
+  background: rgba(168, 85, 247, 0.15);
+  color: #C084FC;
+}
+
 
 

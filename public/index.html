@@ -73,26 +73,73 @@
     <main id="tab-upload" class="tab-content active">
       <!-- Drag and drop zone -->
       <section class="upload-card">
+        <!-- Source Category Selector -->
+        <div class="source-category-nav">
+          <button type="button" class="category-btn active" id="cat-btn-hrts" onclick="setUploadCategory('hrts')">
+            <i class="fa-solid fa-ticket"></i>
+            <div class="category-btn-text">
+              <span class="category-btn-title">HRTS Ticketing</span>
+              <span class="category-btn-desc">Sales, Refund, Occupancy</span>
+            </div>
+          </button>
+          <button type="button" class="category-btn" id="cat-btn-middleware" onclick="setUploadCategory('middleware')">
+            <i class="fa-solid fa-server"></i>
+            <div class="category-btn-text">
+              <span class="category-btn-title">Middleware</span>
+              <span class="category-btn-desc">Transaction Logs (.txt / .csv)</span>
+            </div>
+          </button>
+          <button type="button" class="category-btn" id="cat-btn-pg" onclick="setUploadCategory('payment_gateway')">
+            <i class="fa-solid fa-credit-card"></i>
+            <div class="category-btn-text">
+              <span class="category-btn-title">Payment Gateway</span>
+              <span class="category-btn-desc">Xendit, Finnet, Doku</span>
+            </div>
+          </button>
+        </div>
+
+        <!-- Sub-selector for Payment Gateway Providers -->
+        <div class="pg-provider-bar hidden" id="pg-provider-bar">
+          <span class="pg-bar-label"><i class="fa-solid fa-sliders"></i> Gateway Provider:</span>
+          <div class="pg-chips">
+            <button type="button" class="pg-chip active" id="pg-chip-auto" onclick="setPgProvider('auto')">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Detect Provider
+            </button>
+            <button type="button" class="pg-chip" id="pg-chip-xendit" onclick="setPgProvider('xendit')">
+              <span class="provider-dot dot-xendit"></span> Xendit (.csv)
+            </button>
+            <button type="button" class="pg-chip" id="pg-chip-finnet" onclick="setPgProvider('finnet')">
+              <span class="provider-dot dot-finnet"></span> Finnet (.xlsx)
+            </button>
+            <button type="button" class="pg-chip" id="pg-chip-doku_all" onclick="setPgProvider('doku_all')">
+              <span class="provider-dot dot-doku"></span> Doku All (.csv)
+            </button>
+            <button type="button" class="pg-chip" id="pg-chip-doku_qr" onclick="setPgProvider('doku_qr')">
+              <span class="provider-dot dot-doku-qr"></span> Doku QR (.xlsx)
+            </button>
+          </div>
+        </div>
+
         <div class="card-header">
           <div>
-            <h2 class="card-title"><i class="fa-solid fa-file-excel card-icon"></i> Upload Ticketing & Occupancy Excel Files</h2>
-            <p class="card-desc">Supports native ticketing system export formats (.xlsx / .xls). <strong>Auto-detects Sales, Refund, & Occupancy report structures.</strong></p>
+            <h2 class="card-title" id="upload-card-title"><i class="fa-solid fa-file-excel card-icon"></i> Upload Ticketing & Occupancy Excel Files</h2>
+            <p class="card-desc" id="upload-card-desc">Supports native ticketing system export formats (.xlsx / .xls). <strong>Auto-detects Sales, Refund, & Occupancy report structures.</strong></p>
           </div>
-          <div class="badge-format">
+          <div class="badge-format" id="upload-card-badge">
             <i class="fa-solid fa-circle-check"></i> Auto-Detect Sales, Refund & Occupancy
           </div>
         </div>
 
         <div class="dropzone" id="dropzone" onclick="triggerFileInput()">
-          <input type="file" id="file-input" accept=".xlsx, .xls" style="display:none;" onchange="handleFileSelect(event)">
+          <input type="file" id="file-input" accept=".xlsx, .xls, .csv, .txt" style="display:none;" onchange="handleFileSelect(event)">
           <div class="dropzone-icon">
-            <i class="fa-solid fa-file-arrow-up"></i>
+            <i class="fa-solid fa-file-arrow-up" id="dropzone-icon"></i>
           </div>
-          <h3 class="dropzone-title">Drag & drop Excel files here</h3>
+          <h3 class="dropzone-title" id="dropzone-title">Drag & drop Excel files here</h3>
           <p class="dropzone-sub">or <span class="dropzone-browse">Browse from Computer</span></p>
-          <div class="dropzone-tags">
-            <span class="tag"><i class="fa-solid fa-check"></i> 20,000+ Records / Batch</span>
-            <span class="tag"><i class="fa-solid fa-check"></i> Automatic Header Mapping</span>
+          <div class="dropzone-tags" id="dropzone-tags">
+            <span class="tag"><i class="fa-solid fa-check"></i> Multi-Format Ingestion</span>
+            <span class="tag"><i class="fa-solid fa-check"></i> Automatic Structure Detection</span>
             <span class="tag"><i class="fa-solid fa-check"></i> Idempotent Upsert</span>
           </div>
         </div>
@@ -274,9 +321,22 @@
         <div class="card-header">
           <div>
             <h2 class="card-title"><i class="fa-solid fa-clock-rotate-left card-icon"></i> Data Ingestion Audit Log</h2>
-            <p class="card-desc">Audit history of files processed and ingested into PostgreSQL partitioned tables.</p>
+            <p class="card-desc">Audit history of files processed across HRTS, Middleware, and Payment Gateways.</p>
           </div>
-          <button class="btn btn-sm btn-outline" onclick="loadUploadHistory()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          <div class="history-filter-wrap">
+            <label for="history-filter-source"><i class="fa-solid fa-filter"></i> Source:</label>
+            <select id="history-filter-source" class="filter-select" onchange="filterUploadHistory(this.value)">
+              <option value="">All Sources</option>
+              <option value="hrts">HRTS Ticketing</option>
+              <option value="middleware">Middleware</option>
+              <option value="payment_gateway">All Payment Gateways</option>
+              <option value="xendit">Xendit</option>
+              <option value="finnet">Finnet</option>
+              <option value="doku_all">Doku All</option>
+              <option value="doku_qr">Doku QR</option>
+            </select>
+            <button class="btn btn-sm btn-outline" onclick="loadUploadHistory()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          </div>
         </div>
 
         <div class="history-table-wrapper">
@@ -284,16 +344,17 @@
             <thead>
               <tr>
                 <th>Upload Time</th>
+                <th>Source</th>
                 <th>File Name</th>
-                <th>Worksheet</th>
-                <th>Data Date</th>
+                <th>Worksheet / Type</th>
+                <th>Target Date</th>
                 <th>Row Count</th>
                 <th>Duration</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody id="history-tbody">
-              <tr><td colspan="7" class="empty-state">Loading history data...</td></tr>
+              <tr><td colspan="8" class="empty-state">Loading history data...</td></tr>
             </tbody>
           </table>
         </div>

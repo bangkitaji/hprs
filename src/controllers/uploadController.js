@@ -68,9 +68,20 @@ async function processUpload(req, res, next) {
       selectedSheets,
     });
 
+    const parts = [];
+    if (results.totalSalesInserted > 0) parts.push(`${results.totalSalesInserted.toLocaleString()} Sales`);
+    if (results.totalRefundInserted > 0) parts.push(`${results.totalRefundInserted.toLocaleString()} Refund`);
+    if (results.totalOccupancyInserted > 0) parts.push(`${results.totalOccupancyInserted.toLocaleString()} Occupancy`);
+    if (results.totalMiddlewareInserted > 0) parts.push(`${results.totalMiddlewareInserted.toLocaleString()} Middleware`);
+    if (results.totalXenditInserted > 0) parts.push(`${results.totalXenditInserted.toLocaleString()} Xendit`);
+    if (results.totalFinnetInserted > 0) parts.push(`${results.totalFinnetInserted.toLocaleString()} Finnet`);
+    if (results.totalDokuQrInserted > 0) parts.push(`${results.totalDokuQrInserted.toLocaleString()} Doku QR`);
+    if (results.totalDokuAllInserted > 0) parts.push(`${results.totalDokuAllInserted.toLocaleString()} Doku All`);
+    const summaryMsg = parts.length > 0 ? parts.join(', ') : '0 records';
+
     res.json({
       success: true,
-      message: `Successfully ingested ${results.totalSalesInserted} Sales records, ${results.totalRefundInserted} Refund records, and ${results.totalOccupancyInserted} Occupancy records.`,
+      message: `Successfully ingested ${summaryMsg}.`,
       results,
     });
   } catch (err) {

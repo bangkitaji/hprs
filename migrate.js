@@ -113,10 +113,16 @@ async function runMigration() {
     console.log('      ✅ View kompatibilitas, modul okupansi kereta, dan stored procedure sp_refresh_daily_summary berhasil dipasang.');
 
     // 7. Skrip 09: Pengguna RBAC & Audit Upload History
-    console.log('\n[7/7] ⏳ Menyiapkan tabel pengguna RBAC dan riwayat audit upload...');
+    console.log('\n[7/8] ⏳ Menyiapkan tabel pengguna RBAC dan riwayat audit upload...');
     const sqlUsers = readSqlFile('09_create_users_table.sql');
     await client.query(sqlUsers);
     console.log('      ✅ Tabel users, akun default (admin & operator), dan tabel upload_history berhasil disiapkan.');
+
+    // 8. Skrip 10: Middleware & Payment Gateway Tables
+    console.log('\n[8/8] ⏳ Menyiapkan tabel Middleware & Payment Gateway (Xendit, Finnet, Doku)...');
+    const sqlPg = readSqlFile('10_create_middleware_and_pg_tables.sql');
+    await client.query(sqlPg);
+    console.log('      ✅ Tabel middleware_transactions, pg_xendit_settlements, pg_finnet_settlements, pg_doku_qr_settlements, pg_doku_all_settlements berhasil disiapkan.');
 
     console.log('\n=======================================================');
     console.log('🎉 MIGRASI DATABASE BERHASIL 100%!');
