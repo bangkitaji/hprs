@@ -250,7 +250,10 @@
         </div>
       </div>
 
-      <!-- KPI Grid -->
+      <!-- Section 1: Ticketing KPI Grid -->
+      <div class="section-divider" style="margin-top: 10px;">
+        <h3 class="section-divider-title"><i class="fa-solid fa-ticket"></i> HRTS Ticketing Core Performance</h3>
+      </div>
       <div class="kpi-grid">
         <div class="kpi-card">
           <div class="kpi-label">Total Tickets Sold (Period)</div>
@@ -279,6 +282,39 @@
         </div>
       </div>
 
+      <!-- Section 2: Payment Gateway & Settlement KPI Grid -->
+      <div class="section-divider">
+        <h3 class="section-divider-title"><i class="fa-solid fa-credit-card"></i> Payment Gateway & Settlement Performance</h3>
+        <span class="badge-format" style="font-size: 11px;"><i class="fa-solid fa-shield-halved"></i> Xendit, Finnet, Doku & Middleware</span>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card" style="border-top: 3px solid #10B981;">
+          <div class="kpi-label">Total PG Settled Net Funds</div>
+          <div class="kpi-value" id="kpi-pg-net" style="color: #10B981;">-</div>
+          <div class="kpi-trend positive"><i class="fa-solid fa-building-columns"></i> Cash In Account</div>
+        </div>
+        <div class="kpi-card" style="border-top: 3px solid #06B6D4;">
+          <div class="kpi-label">Total PG Gross Volume</div>
+          <div class="kpi-value" id="kpi-pg-gross">-</div>
+          <div class="kpi-trend"><i class="fa-solid fa-receipt"></i> Total Paid Transacted</div>
+        </div>
+        <div class="kpi-card" style="border-top: 3px solid #F59E0B;">
+          <div class="kpi-label">Total Processing Fees & VAT</div>
+          <div class="kpi-value" id="kpi-pg-fee" style="color: #F59E0B;">-</div>
+          <div class="kpi-trend"><i class="fa-solid fa-percent"></i> PG Service Deductions</div>
+        </div>
+        <div class="kpi-card" style="border-top: 3px solid #A855F7;">
+          <div class="kpi-label">PG Clearance Rate</div>
+          <div class="kpi-value" id="kpi-pg-rate">-</div>
+          <div class="kpi-trend"><i class="fa-solid fa-circle-check"></i> <span id="kpi-pg-settled-count">Settled vs Pending</span></div>
+        </div>
+        <div class="kpi-card" style="border-top: 3px solid #EC4899;">
+          <div class="kpi-label">Middleware Logged Volume</div>
+          <div class="kpi-value" id="kpi-mw-volume">-</div>
+          <div class="kpi-trend"><i class="fa-solid fa-server"></i> <span id="kpi-mw-count">0 Hits</span></div>
+        </div>
+      </div>
+
       <!-- Breakdown Grid -->
       <div class="dash-columns">
         <div class="dash-card">
@@ -298,7 +334,7 @@
         </div>
 
         <div class="dash-card">
-          <h3 class="dash-card-title"><i class="fa-solid fa-credit-card"></i> Sales by Channel / Payment Method</h3>
+          <h3 class="dash-card-title"><i class="fa-solid fa-credit-card"></i> Sales by Ticketing Channel</h3>
           <div class="dash-table-wrapper">
             <table class="dash-table" id="payment-table">
               <thead>
@@ -311,6 +347,34 @@
               <tbody id="payment-tbody"></tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- Full-Width Card: Payment Gateway & Settlement Breakdown Table -->
+      <div class="dash-card" style="margin-top: 24px;">
+        <div class="card-header" style="margin-bottom: 12px; padding: 0;">
+          <div>
+            <h3 class="dash-card-title" style="margin-bottom: 4px;"><i class="fa-solid fa-layer-group"></i> Payment Gateway Settlement & Clearing Breakdown</h3>
+            <p class="card-desc" style="font-size: 13px;">Consolidated clearing status from Xendit, Finnet, Doku QR, Doku All, and Middleware.</p>
+          </div>
+        </div>
+        <div class="dash-table-wrapper">
+          <table class="dash-table" id="pg-summary-table">
+            <thead>
+              <tr>
+                <th>Provider / Layer</th>
+                <th>Channel Description</th>
+                <th>Total Trx</th>
+                <th>Settled Status</th>
+                <th>Gross Volume</th>
+                <th>PG Fee + VAT</th>
+                <th>Net Settled Amount</th>
+              </tr>
+            </thead>
+            <tbody id="pg-summary-tbody">
+              <tr><td colspan="7" class="empty-state">Loading payment gateway summary...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </main>

@@ -778,15 +778,22 @@ function renderSuccessCard(results) {
 
 function initDateFilters() {
   const today = new Date();
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(today.getDate() - 30);
+  // Default start date to the 1st day of the previous month so full October + November data is immediately covered
+  const startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
 
   const startInput = document.getElementById('dash-start-date');
   const endInput = document.getElementById('dash-end-date');
 
+  const formatLocal = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
   if (startInput && endInput) {
-    startInput.value = thirtyDaysAgo.toISOString().split('T')[0];
-    endInput.value = today.toISOString().split('T')[0];
+    startInput.value = formatLocal(startDate);
+    endInput.value = formatLocal(today);
   }
 }
 
@@ -870,6 +877,75 @@ async function loadDashboardSummary() {
         .join('');
     } else {
       paymentTbody.innerHTML = '<tr><td colspan="3" class="empty-state">No data available for this period</td></tr>';
+    }
+
+    // Render Payment Gateway & Settlement Summary
+    if (data.gatewaySummary) {
+      const gw = data.gatewaySummary;
+      const netEl = document.getElementById('kpi-pg-net');
+      const grossEl = document.getElementById('kpi-pg-gross');
+      const feeEl = document.getElementById('kpi-pg-fee');
+      const rateEl = document.getElementById('kpi-pg-rate');
+      const rateSubEl = document.getElementById('kpi-pg-settled-count');
+      const mwEl = document.getElementById('kpi-mw-volume');
+      const mwSubEl = document.getElementById('kpi-mw-count');
+
+      if (netEl) netEl.innerText = formatIDR(gw.totalNetAmount || 0);
+      if (grossEl) grossEl.innerText = formatIDR(gw.totalGrossAmount || 0);
+      if (feeEl) feeEl.innerText = formatIDR(gw.totalFeeAmount || 0);
+
+      const ratePct = gw.totalTransactions > 0 ? ((gw.totalSettledTransactions / gw.totalTransactions) * 100).toFixed(1) : '100.0';
+      if (rateEl) rateEl.innerText = `${ratePct}%`;
+      if (rateSubEl) rateSubEl.innerText = `${(gw.totalSettledTransactions || 0).toLocaleString('en-US')} of ${(gw.totalTransactions || 0).toLocaleString('en-US')} Settled`;
+
+      if (gw.middleware) {
+        if (mwEl) mwEl.innerText = formatIDR(gw.middleware.gross_amount || 0);
+        if (mwSubEl) mwSubEl.innerText = `${(gw.middleware.count || 0).toLocaleString('en-US')} Hits Logged`;
+      }
+
+      // Populate PG Summary Table
+      const pgTbody = document.getElementById('pg-summary-tbody');
+      if (pgTbody) {
+        const rows = [...gw.providers];
+        if (gw.middleware && gw.middleware.count > 0) {
+          rows.push({
+            provider: 'Middleware',
+            channel_desc: 'API & Logging Gateway',
+            count: gw.middleware.count,
+            settled_count: gw.middleware.count,
+            pending_count: 0,
+            gross_amount: gw.middleware.gross_amount,
+            fee_amount: gw.middleware.fee_amount,
+            net_amount: gw.middleware.net_amount,
+          });
+        }
+
+        if (rows.length > 0 && rows.some(r => r.count > 0)) {
+          pgTbody.innerHTML = rows
+            .map((p) => {
+              const providerClass = p.provider.toLowerCase().replace(' ', '_');
+              const providerBadge = `<span class="source-pill source-${providerClass}">${escapeHtml(p.provider)}</span>`;
+              const settledInfo = p.pending_count > 0
+                ? `<span style="color:#10B981; font-weight:600;">${(p.settled_count || 0).toLocaleString('en-US')}</span> / <span style="color:#F59E0B;">${(p.pending_count || 0).toLocaleString('en-US')} Pend</span>`
+                : `<span style="color:#10B981; font-weight:600;"><i class="fa-solid fa-circle-check"></i> ${(p.settled_count || 0).toLocaleString('en-US')} (100%)</span>`;
+
+              return `
+                <tr>
+                  <td>${providerBadge}</td>
+                  <td><span style="color:var(--text-secondary); font-size:12px;">${escapeHtml(p.channel_desc || '-')}</span></td>
+                  <td style="font-family: var(--font-mono); font-weight:600;">${(p.count || 0).toLocaleString('en-US')}</td>
+                  <td>${settledInfo}</td>
+                  <td style="font-family: var(--font-mono);">${formatIDR(p.gross_amount)}</td>
+                  <td style="font-family: var(--font-mono); color: #F59E0B;">${formatIDR(p.fee_amount)}</td>
+                  <td style="font-family: var(--font-mono); color: #10B981; font-weight:700;">${formatIDR(p.net_amount)}</td>
+                </tr>
+              `;
+            })
+            .join('');
+        } else {
+          pgTbody.innerHTML = '<tr><td colspan="7" class="empty-state">No payment gateway data available for this period</td></tr>';
+        }
+      }
     }
   } catch (err) {
     console.error('Error loadDashboardSummary:', err);
