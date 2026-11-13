@@ -21,6 +21,31 @@ const server = app.listen(PORT, () => {
   console.log('=======================================================');
 });
 
+// Tangani error binding port (misal Port 3000 sudah terpakai)
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n❌ PORT ${PORT} SUDAH DIGUNAKAN (EADDRINUSE)!`);
+    console.error(`   Ada proses Node.js lama atau aplikasi lain yang masih menduduki port ${PORT}.`);
+    console.error(`   Cara mengatasinya di Linux production:`);
+    console.error(`   1. Hentikan proses lama: sudo fuser -k ${PORT}/tcp`);
+    console.error(`   2. Atau bunuh semua node: killall -9 node`);
+    console.error(`   3. Kemudian reload PM2: pm2 reload ecosystem.config.js --env production\n`);
+  } else {
+    console.error('\n❌ Server HTTP Error:', err);
+  }
+  process.exit(1);
+});
+
+// Global Uncaught Exception & Promise Rejection Handlers
+process.on('uncaughtException', (err) => {
+  console.error('\n💥 Uncaught Exception in server process:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('\n💥 Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 // Graceful Shutdown Handler
 function handleGracefulShutdown(signal) {
   console.log(`\n[${signal}] Gracefully shutting down server...`);

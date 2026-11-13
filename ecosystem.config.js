@@ -7,10 +7,12 @@ const fs = require('fs');
 const path = require('path');
 
 // Pastikan direktori logs otomatis dibuat jika belum ada
-const logsDir = path.resolve(__dirname, 'logs');
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
-}
+try {
+  const logsDir = path.resolve(__dirname, 'logs');
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+} catch (_) {}
 
 module.exports = {
   apps: [
