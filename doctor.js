@@ -9,6 +9,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const net = require('net');
 const { loadEnvironmentConfig } = require('./src/config/envLoader');
 
 const { loadedPath, parsedKeys, dbConfig } = loadEnvironmentConfig();
@@ -18,10 +19,13 @@ const { UPLOAD_DIR } = require('./src/config/upload');
 const autoFix = process.argv.includes('--fix');
 
 async function runDoctor() {
+  const targetPort = parseInt(process.env.PORT || '3000', 10);
+
   console.log('=======================================================');
   console.log('🩺 FAREBOX SYSTEM & DATABASE DOCTOR');
   console.log('=======================================================');
   console.log(`📁 Config File : ${loadedPath || '⚠️ TIDAK DITEMUKAN'}`);
+  console.log(`🌐 HTTP Port   : ${targetPort}`);
   console.log(`🔌 DB Target   : ${dbConfig.host}:${dbConfig.port} (${dbConfig.database})`);
   console.log(`👤 DB User     : ${dbConfig.user}`);
   console.log(`🔒 SSL Mode    : ${dbConfig.ssl ? 'Enabled' : 'Disabled'}`);
@@ -30,7 +34,24 @@ async function runDoctor() {
 
   let hasError = false;
 
-  // 1. Uji Tulis Direktori Uploads
+  // 1. Uji Ketersediaan Port HTTP
+  const isPortFree = await new Promise((resolve) => {
+    const s = net.createServer()
+      .once('error', (e) => resolve(e.code !== 'EADDRINUSE'))
+      .once('listening', () => s.once('close', () => resolve(true)).close())
+      .listen(targetPort);
+  });
+
+  if (!isPortFree) {
+    console.warn(`⚠️ [1/5] Port HTTP (${targetPort}) : SEDANG DIGUNAKAN (EADDRINUSE)!`);
+    console.warn(`      Ada proses lain (seperti dhrts-backend) yang sedang berjalan di port ${targetPort}.`);
+    console.warn(`      Solusi jika port 3000 dipakai app lain:`);
+    console.warn(`      Ganti PORT=3001 di .env & ecosystem.config.js, serta sesuaikan nginx.`);
+  } else {
+    console.log(`✅ [1/5] Port HTTP (${targetPort}) : TERSEDIA`);
+  }
+
+  // 2. Uji Tulis Direktori Uploads
   try {
     if (!fs.existsSync(UPLOAD_DIR)) {
       fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -38,30 +59,30 @@ async function runDoctor() {
     const testFile = path.join(UPLOAD_DIR, `.write_test_${Date.now()}.tmp`);
     fs.writeFileSync(testFile, 'test');
     fs.unlinkSync(testFile);
-    console.log('✅ [1/4] Direktori Uploads : DAPAT DITULIS (Writable)');
+    console.log('✅ [2/5] Direktori Uploads : DAPAT DITULIS (Writable)');
   } catch (err) {
     hasError = true;
-    console.error('❌ [1/4] Direktori Uploads : GAGAL DITULIS!');
+    console.error('❌ [2/5] Direktori Uploads : GAGAL DITULIS!');
     console.error(`      Detail : ${err.message}`);
     console.error('      Solusi : Jalankan di server: chmod -R 775 uploads && chown -R www-data:www-data uploads');
   }
 
-  // 2. Uji Koneksi Database
+  // 3. Uji Koneksi Database
   let client;
   try {
     client = await pool.connect();
     const ver = await client.query('SELECT version(), current_database();');
-    console.log(`✅ [2/4] Koneksi Database : BERHASIL terhubung ke "${ver.rows[0].current_database}"`);
+    console.log(`✅ [3/5] Koneksi Database : BERHASIL terhubung ke "${ver.rows[0].current_database}"`);
   } catch (err) {
     hasError = true;
-    console.error('❌ [2/4] Koneksi Database : GAGAL!');
+    console.error('❌ [3/5] Koneksi Database : GAGAL!');
     console.error(`      Detail : ${err.message}`);
     console.error('      Solusi : Periksa file .env pada server ini (DB_HOST, DB_PASSWORD, DB_PORT, dll)');
     await pool.end();
     process.exit(1);
   }
 
-  // 3. Verifikasi Tabel-tabel yang Diperlukan
+  // 4. Verifikasi Tabel-tabel yang Diperlukan
   const requiredTables = [
     { name: 'hrts_sales', category: 'Ticketing' },
     { name: 'hrts_refund', category: 'Ticketing' },
@@ -77,7 +98,7 @@ async function runDoctor() {
     { name: 'reconciliation_items', category: 'Reconciliation' },
   ];
 
-  console.log('\n⏳ [3/4] Memeriksa keberadaan tabel-tabel database...');
+  console.log('\n⏳ [4/5] Memeriksa keberadaan tabel-tabel database...');
   const missingTables = [];
 
   for (const t of requiredTables) {
@@ -90,8 +111,8 @@ async function runDoctor() {
     }
   }
 
-  // 4. Verifikasi Kolom upload_history (source_type & provider)
-  console.log('\n⏳ [4/4] Memeriksa kolom upload_history (source_type, provider)...');
+  // 5. Verifikasi Kolom upload_history (source_type & provider)
+  console.log('\n⏳ [5/5] Memeriksa kolom upload_history (source_type, provider)...');
   const colRes = await client.query(`
     SELECT column_name FROM information_schema.columns 
     WHERE table_schema = 'public' AND table_name = 'upload_history' 
@@ -158,3 +179,4 @@ async function runDoctor() {
 }
 
 runDoctor();
+
