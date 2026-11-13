@@ -26,8 +26,8 @@ module.exports = {
       name: 'farebox-portal',
       script: './server.js',
       cwd: __dirname,
-      instances: 2, // Mode kluster untuk ketersediaan tinggi (atau gunakan 'max' sesuai core)
-      exec_mode: 'cluster',
+      instances: 1, // Mode fork: stabil & kompatibel dengan Node.js v24 (seperti dhrts-backend)
+      exec_mode: 'fork',
       env: {
         NODE_ENV: 'development',
         PORT: appPort,
