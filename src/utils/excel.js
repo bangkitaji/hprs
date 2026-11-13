@@ -81,22 +81,27 @@ function detectSheetStructure(sheet) {
       return { sheetType: 'pg_xendit', headerRowIdx: r, dataStartRowIdx: r + 1, colMap };
     }
 
-    // 4. Identifikasi Doku All (kolom invoicenumber, paymentmethod, dan additionalinfo)
-    if (rowHeaders.includes('invoicenumber') && rowHeaders.includes('paymentmethod') && rowHeaders.includes('additionalinfo')) {
+    // 4. Identifikasi Doku All (kolom invoicenumber + (paymentmethod atau additionalinfo atau responsemessage))
+    if (rowHeaders.includes('invoicenumber') && (rowHeaders.includes('additionalinfo') || (rowHeaders.includes('paymentmethod') && (rowHeaders.includes('responsemessage') || rowHeaders.includes('responsecode') || rowHeaders.includes('acquirername'))))) {
       return { sheetType: 'pg_doku_all', headerRowIdx: r, dataStartRowIdx: r + 1, colMap };
     }
 
-    // 5. Identifikasi Occupancy Report
+    // 5. Identifikasi Middleware dari CSV/Excel (kolom businessserialnumber dan middlewareserialnumber)
+    if (rowHeaders.includes('businessserialnumber') && rowHeaders.includes('middlewareserialnumber')) {
+      return { sheetType: 'middleware', headerRowIdx: r, dataStartRowIdx: r + 1, colMap };
+    }
+
+    // 6. Identifikasi Occupancy Report
     if (rowHeaders.includes('trainnumber') && (rowHeaders.includes('sumpsg') || rowHeaders.includes('capacityperclass') || rowHeaders.includes('totfare'))) {
       return { sheetType: 'occupancy', headerRowIdx: r, dataStartRowIdx: r + 1, colMap };
     }
 
-    // 6. Identifikasi Refund Report
+    // 7. Identifikasi Refund Report
     if (rowHeaders.includes('refunddate') && (rowHeaders.includes('refundamount') || rowHeaders.includes('refundcharge'))) {
       return { sheetType: 'refund', headerRowIdx: r, dataStartRowIdx: r + 1, colMap };
     }
 
-    // 7. Identifikasi Sales Report
+    // 8. Identifikasi Sales Report
     if (rowHeaders.includes('purchasedate') && rowHeaders.includes('ticketno')) {
       return { sheetType: 'sales', headerRowIdx: r, dataStartRowIdx: r + 1, colMap };
     }

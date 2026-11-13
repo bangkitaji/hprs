@@ -72,29 +72,62 @@ async function logUploadHistory({
   sourceType = 'hrts',
   provider = null,
 }) {
-  const query = `
-    INSERT INTO upload_history (
-      file_name, file_size, sheet_name, target_date, total_rows,
-      inserted_rows, status, error_message, duration_ms, source_type, provider
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-    RETURNING id
-  `;
-  const values = [
-    fileName,
-    fileSize,
-    sheetName,
-    targetDate,
-    totalRows,
-    insertedRows,
-    status,
-    errorMessage,
-    durationMs,
-    sourceType,
-    provider,
-  ];
+  try {
+    const query = `
+      INSERT INTO upload_history (
+        file_name, file_size, sheet_name, target_date, total_rows,
+        inserted_rows, status, error_message, duration_ms, source_type, provider
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING id
+    `;
+    const values = [
+      fileName,
+      fileSize,
+      sheetName,
+      targetDate,
+      totalRows,
+      insertedRows,
+      status,
+      errorMessage,
+      durationMs,
+      sourceType,
+      provider,
+    ];
 
-  const result = await pool.query(query, values);
-  return result.rows[0]?.id;
+    const result = await pool.query(query, values);
+    return result.rows[0]?.id;
+  } catch (err) {
+    // Fallback jika kolom source_type/provider belum ada (migrasi 10 belum dijalankan)
+    if (err.message && (err.message.includes('source_type') || err.message.includes('provider'))) {
+      try {
+        const fallbackQuery = `
+          INSERT INTO upload_history (
+            file_name, file_size, sheet_name, target_date, total_rows,
+            inserted_rows, status, error_message, duration_ms
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          RETURNING id
+        `;
+        const fallbackValues = [
+          fileName,
+          fileSize,
+          sheetName,
+          targetDate,
+          totalRows,
+          insertedRows,
+          status,
+          errorMessage,
+          durationMs,
+        ];
+        const res = await pool.query(fallbackQuery, fallbackValues);
+        return res.rows[0]?.id;
+      } catch (fallbackErr) {
+        console.error('Fallback logUploadHistory also failed:', fallbackErr.message);
+      }
+    } else {
+      console.error('Failed to log upload history:', err.message);
+    }
+    return null;
+  }
 }
 
 module.exports = {

@@ -29,21 +29,41 @@ const { invalidateStatsCache } = require('./statsService');
 const BATCH_SIZE = 1000;
 
 /**
- * Memeriksa apakah berkas berupa teks Middleware (.txt atau pemisah ||).
+ * Memeriksa apakah berkas berupa teks Middleware (.txt atau CSV dengan pemisah ||).
+ * Hanya mendeteksi sebagai middleware jika:
+ *   - Ekstensi .txt, ATAU
+ *   - Ekstensi .csv DAN baris pertama menggunakan || sebagai delimiter (bukan sekadar
+ *     mengandung || di tengah konten — harus ada minimal 3 kolom yang dipisahkan ||).
+ * File .xlsx/.xls selalu ditangani oleh sheetjs dan TIDAK dianggap middleware.
  */
 async function checkIsMiddlewareTxt(filePath) {
   try {
     const ext = path.extname(filePath).toLowerCase();
+
+    // .xlsx dan .xls selalu bukan middleware text
+    if (ext === '.xlsx' || ext === '.xls') return false;
+
+    // .txt selalu dianggap middleware
     if (ext === '.txt') return true;
 
-    // Baca 1 baris pertama untuk memeriksa pemisah ||
-    const stream = fs.createReadStream(filePath, { encoding: 'utf-8', start: 0, end: 1024 });
-    let firstChunk = '';
-    for await (const chunk of stream) {
-      firstChunk += chunk;
-      break;
+    // Untuk .csv: baca baris pertama dan cek apakah delimiter utamanya adalah ||
+    if (ext === '.csv') {
+      const stream = fs.createReadStream(filePath, { encoding: 'utf-8', start: 0, end: 2048 });
+      let firstChunk = '';
+      for await (const chunk of stream) {
+        firstChunk += chunk;
+        break;
+      }
+      // Ambil baris pertama saja
+      const firstLine = firstChunk.split(/\r?\n/)[0] || '';
+      // Hitung jumlah kolom yang terpisahkan oleh ||
+      const pipeColumns = firstLine.split('||').length;
+      // Harus ada minimal 5 kolom yang dipisah || untuk dianggap middleware
+      // (middleware format: bsn||mw_sn||pg_sn||time||... minimal 5 field)
+      return pipeColumns >= 5;
     }
-    return firstChunk.includes('||');
+
+    return false;
   } catch (_) {
     return false;
   }
@@ -427,6 +447,8 @@ async function processExcelIngestion({ tempFilePath, originalName, fileSize, sel
   try {
     // 1. Cek jika berkas adalah Middleware TXT
     const isMw = await checkIsMiddlewareTxt(tempFilePath);
+    console.log(`[Ingestion] File: "${originalName}", ext=${path.extname(tempFilePath).toLowerCase()}, detectedMiddleware=${isMw}`);
+
     if (isMw) {
       console.log(`Ingesting Middleware text file: ${originalName}...`);
       const insertedCount = await processMiddlewareIngestion(client, tempFilePath, originalName);
@@ -475,9 +497,11 @@ async function processExcelIngestion({ tempFilePath, originalName, fileSize, sel
       const colMap = struct.colMap;
 
       if (sheetType === 'unknown') {
-        console.warn(`Skipping sheet "${sheetName}": report type not recognized.`);
+        console.warn(`Skipping sheet "${sheetName}": report type not recognized. Headers: ${struct.colMap.map(c => c.rawHeader).slice(0, 8).join(', ')}`);
         continue;
       }
+
+      console.log(`[Ingestion] Sheet "${sheetName}" detected as: ${sheetType} (${struct.colMap.length} columns, data starts at row ${struct.dataStartRowIdx})`);
 
       const dataRows = [];
       const distinctDates = new Set();
@@ -876,6 +900,21 @@ async function processExcelIngestion({ tempFilePath, originalName, fileSize, sel
       results.totalFinnetInserted +
       results.totalDokuQrInserted +
       results.totalDokuAllInserted;
+
+    // Jika tidak ada sheet yang berhasil diproses, lempar error deskriptif
+    if (results.sheetsProcessed.length === 0) {
+      const sheetNames = workbook.SheetNames.join(', ');
+      throw new Error(
+        `No recognizable data structure found in file "${originalName}". ` +
+        `Sheets scanned: [${sheetNames}]. ` +
+        `Supported structures: Sales, Refund, Occupancy, Xendit, Finnet, Doku QR, Doku All. ` +
+        `Please verify the file format and column headers.`
+      );
+    }
+
+    if (totalAllInserted === 0) {
+      console.warn(`[Ingestion] File "${originalName}" processed ${results.sheetsProcessed.length} sheets but 0 records were inserted.`);
+    }
 
     // Tentukan kategori dan provider untuk audit history
     let primarySourceType = 'hrts';

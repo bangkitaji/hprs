@@ -26,10 +26,16 @@ function errorHandler(err, req, res, next) {
   }
 
   // Fallback 500 Internal Server Error
+  // Selalu kirim pesan error yang bermakna untuk debugging upload
+  const isUploadRoute = req.originalUrl && req.originalUrl.includes('/api/upload');
+  const safeMessage = isUploadRoute
+    ? `Ingestion error: ${err.message}`
+    : (process.env.NODE_ENV === 'production'
+        ? 'An internal server error occurred.'
+        : err.message);
+
   res.status(500).json({
-    error: process.env.NODE_ENV === 'production'
-      ? 'An internal server error occurred.'
-      : err.message,
+    error: safeMessage,
   });
 }
 
