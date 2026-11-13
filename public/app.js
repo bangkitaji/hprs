@@ -369,6 +369,29 @@ function applyUserSession(user) {
 }
 
 /**
+ * Safely parse response as JSON with informative error extraction for HTML error pages (413, 502, 504, etc.)
+ */
+async function safeParseJson(res) {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch (_) {
+    // Tangani HTML error pages dari Nginx / Reverse Proxy
+    if (res.status === 413 || text.includes('413 Request Entity Too Large')) {
+      throw new Error('Ukuran file melebihi batas upload web server (HTTP 413: Request Entity Too Large). Silakan tambahkan "client_max_body_size 100M;" di /etc/nginx/nginx.conf.');
+    }
+    if (res.status === 502 || text.includes('502 Bad Gateway')) {
+      throw new Error('Backend server tidak dapat dihubungi (HTTP 502: Bad Gateway). Pastikan PM2 online di port 3030.');
+    }
+    if (res.status === 504 || text.includes('504 Gateway Time-out')) {
+      throw new Error('Waktu pemrosesan file habis (HTTP 504: Gateway Timeout).');
+    }
+    const cleanMsg = text.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+    throw new Error(`Server returned HTTP ${res.status}: ${cleanMsg.slice(0, 150) || 'Invalid server response'}`);
+  }
+}
+
+/**
  * Fetch wrapper automatically attaching JWT Authorization header
  */
 async function authFetch(url, options = {}) {
@@ -520,12 +543,12 @@ async function processSelectedFile(file) {
       body: formData,
     });
 
+    const data = await safeParseJson(res);
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to process file preview');
+      throw new Error(data.error || 'Failed to process file preview');
     }
 
-    currentPreviewData = await res.json();
+    currentPreviewData = data;
     renderSheetOptions(currentPreviewData);
   } catch (err) {
     alert('An error occurred: ' + err.message);
@@ -721,7 +744,7 @@ async function startBatchIngestion() {
         }),
       });
 
-      const data = await res.json();
+      const data = await safeParseJson(res);
 
       if (!res.ok) {
         throw new Error(data.error || 'Failed to ingest data into database');
