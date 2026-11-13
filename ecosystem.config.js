@@ -5,6 +5,10 @@
 
 const fs = require('fs');
 const path = require('path');
+const { loadEnvironmentConfig } = require('./src/config/envLoader');
+
+// Muat konfigurasi .env agar port selalu sinkron
+loadEnvironmentConfig();
 
 // Pastikan direktori logs otomatis dibuat jika belum ada
 try {
@@ -13,6 +17,8 @@ try {
     fs.mkdirSync(logsDir, { recursive: true });
   }
 } catch (_) {}
+
+const appPort = parseInt(process.env.PORT || '3030', 10);
 
 module.exports = {
   apps: [
@@ -24,11 +30,11 @@ module.exports = {
       exec_mode: 'cluster',
       env: {
         NODE_ENV: 'development',
-        PORT: 3000,
+        PORT: appPort,
       },
       env_production: {
         NODE_ENV: 'production',
-        PORT: 3000, // Sesuaikan jika port 3000 sudah terpakai oleh aplikasi/stack lain
+        PORT: appPort,
       },
       max_memory_restart: '1G',
       autorestart: true,
